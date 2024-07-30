@@ -10,7 +10,7 @@
 
 
 # define brf_TESTPAGE_HEADER	"T*E*S*T*P*A*G*E*"
-#  define brf_TESTPAGE_MIMETYPE	"application/vnd.cups-paged-brf"
+# define brf_TESTPAGE_MIMETYPE	"application/vnd.cups-paged-brf"
 
 
 extern bool	brf_gen(pappl_system_t *system, const char *driver_name, const char *device_uri, const char *device_id, pappl_pr_driver_data_t *data, ipp_t **attrs, void *cbdata);
@@ -418,7 +418,7 @@ system_cb(
   papplSystemSetPrinterDrivers(system, (int)(sizeof(brf_drivers) / sizeof(brf_drivers[0])), brf_drivers, autoadd_cb, /*create_cb*/NULL, driver_cb, system);
 
   
-  papplSystemSetFooterHTML(system, "Copyright &copy; 2022 by Chandresh Soni. All rights reserved.");
+  papplSystemSetFooterHTML(system, "Copyright &copy; 2024 by Arun Soni. All rights reserved.");
   papplSystemSetSaveCallback(system, (pappl_save_cb_t)papplSystemSaveState, (void *)brf_statefile);
   papplSystemSetVersions(system, (int)(sizeof(versions) / sizeof(versions[0])), versions);
 

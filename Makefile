@@ -1,7 +1,7 @@
 #
 # Makefile for the Braille Printer Application
 #
-# Copyright © 2022 Chandresh Soni
+# Copyright © 2024 Arun Patwa
 #
 # Licensed under Apache License v2.0.  See the file "LICENSE" for more
 # information.
