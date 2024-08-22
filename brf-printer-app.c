@@ -789,7 +789,6 @@ brf_print_filter_function(int inputfd,            // I - File descriptor input
 
 // for text to brf conversion and then pushing into embosser
 
-
 static bool
 send_brf_to_embosser(pappl_job_t *job, pappl_device_t *device, const char *brf_file)
 {
