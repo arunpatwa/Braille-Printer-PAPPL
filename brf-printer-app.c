@@ -789,6 +789,53 @@ brf_print_filter_function(int inputfd,            // I - File descriptor input
 
 // for text to brf conversion and then pushing into embosser
 
+
+static bool
+send_brf_to_embosser(pappl_job_t *job, pappl_device_t *device, const char *brf_file)
+{
+    FILE *fp;
+    char buffer[8192]; // Buffer for reading BRF file
+    size_t bytes_read;
+    ssize_t bytes_written;
+
+    // Open the BRF file
+    fp = fopen(brf_file, "rb");
+    if (!fp)
+    {
+        papplJobLog(job, PAPPL_LOGLEVEL_ERROR, "Unable to open BRF file: %s\n", brf_file);
+        return false;
+    }
+
+    // Open the embosser device
+    if (!papplDeviceOpen(device, papplPrinterGetDeviceURI(papplJobGetPrinter(job)), "w"))
+    {
+        fclose(fp);
+        papplJobLog(job, PAPPL_LOGLEVEL_ERROR, "Unable to open device for embosser.\n");
+        return false;
+    }
+
+    // Read the BRF file and send it to the embosser
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0)
+    {
+        bytes_written = papplDeviceWrite(device, buffer, bytes_read);
+        if (bytes_written < 0)
+        {
+            fclose(fp);
+            papplDeviceClose(device);
+            papplJobLog(job, PAPPL_LOGLEVEL_ERROR, "Error writing to embosser.\n");
+            return false;
+        }
+    }
+
+    // Close the file and the device
+    fclose(fp);
+    papplDeviceClose(device);
+
+    papplJobLog(job, PAPPL_LOGLEVEL_INFO, "BRF file successfully sent to embosser.\n");
+
+    return true;
+}
+
 static bool
 process_job(pappl_job_t *job, pappl_device_t *device)
 {
@@ -807,8 +854,7 @@ process_job(pappl_job_t *job, pappl_device_t *device)
     return false;
   }
 
-  // Additional steps to send output_file to the Braille embosser
-
+  send_brf_to_embosser(job, device, output_file);
 
   return true;
 }
