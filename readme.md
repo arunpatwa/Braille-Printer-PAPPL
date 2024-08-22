@@ -115,8 +115,9 @@ The following printers are currently supported:
 Legal Stuff
 -----------
 
-The Braille Printer Application is Copyright © 2022 by Chandresh Soni.
-Some of the refrence have been taken from pappl-retrofit.(https://github.com/OpenPrinting/pappl-retrofit) which is Copyright © 2022 by openprinting.
+The Braille Printer Application is Copyright © 2024 by Arun Patwa.
+Some of the reference has been taken from (https://github.com/chandresh-soni/Braille-printer-app) which is copyright © 2022 by Chandresh Soni.
+and also from pappl-retrofit.(https://github.com/OpenPrinting/pappl-retrofit) which is Copyright © 2022 by openprinting.
 
 Filter used to convert various file format are in cups-filter is Copyright © 2022 by Samuel Thibault (samuel.thibault@ens-lyon.org).
 
