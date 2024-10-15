@@ -4,6 +4,8 @@
 #include <pappl/pappl.h>
 #include <math.h>
 
+#define brf_TESTPAGE_MIMETYPE "application/vnd.cups-brf";
+
 // Local functions...
 
 static bool brf_gen_printfile(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
@@ -45,7 +47,7 @@ brf_gen(
   driver_data->rstartpage_cb = brf_gen_rstartpage;
   driver_data->rwriteline_cb = brf_gen_rwriteline;
   driver_data->status_cb = brf_gen_status;
-  driver_data->format = "application/vnd.cups-paged-brf";
+  driver_data->format = brf_TESTPAGE_MIMETYPE;
 
   driver_data->num_resolution = 1;
   driver_data->x_resolution[0] = 200;
@@ -87,6 +89,8 @@ brf_gen(
   papplCopyString(driver_data->media_default.source, "tray-1", sizeof(driver_data->media_default.source));
   papplCopyString(driver_data->media_default.type, "labels", sizeof(driver_data->media_default.type));
   driver_data->media_ready[0] = driver_data->media_default;
+
+  printf("************************gen-brf-called *********************************\n");
 
   return (true);
 }

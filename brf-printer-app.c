@@ -6,13 +6,15 @@
 #include <ppd/ppd-filter.h>
 #include <limits.h>
 #include <pappl/pappl.h>
-#include <liblouisutdml.h>
+#include <liblouisutdml/liblouisutdml.h>
+#include <cups/backend.h>
+
 
 #define brf_TESTPAGE_HEADER "T*E*S*T*P*A*G*E*"
-#define brf_TESTPAGE_MIMETYPE "application/vnd.cups-paged-brf"
+#define brf_TESTPAGE_MIMETYPE "application/vnd.cups-brf"
 
 extern bool brf_gen(pappl_system_t *system, const char *driver_name, const char *device_uri, const char *device_id, pappl_pr_driver_data_t *data, ipp_t **attrs, void *cbdata);
-extern char *strdup(const char *);
+// extern char *strdup(const char *);
 //
 // Local functions...
 //
@@ -37,7 +39,7 @@ static pappl_system_t *system_cb(int num_options, cups_option_t *options, void *
 static pappl_pr_driver_t brf_drivers[] =
     {
         // Driver list
-        {"gen_brf", "Generic",
+        {"gen_brf", "Generic Braille embosser",
          NULL, NULL},
 
 };
@@ -225,6 +227,9 @@ driver_cb(
   data->sides_supported = PAPPL_SIDES_ONE_SIDED;
   data->sides_default = PAPPL_SIDES_ONE_SIDED;
 
+  // data->format = brf_TESTPAGE_MIMETYPE;
+
+
   // "orientation-requested-default" value...
   data->orient_default = IPP_ORIENT_NONE;
 
@@ -236,8 +241,10 @@ driver_cb(
   if (!strncmp(driver_name, "gen_", 4))
     return (brf_gen(system, driver_name, device_uri, device_id, data, attrs, cbdata));
 
-  else
+  else{
+    printf("****************brfgen-not called***************\n");
     return (false);
+  }
 }
 
 // 'mime_cb()' - MIME typing callback...
@@ -415,14 +422,23 @@ system_cb(
 
   fprintf(stderr, "brf: statefile='%s'\n", brf_statefile);
 
-  if (!papplSystemLoadState(system, brf_statefile))
-  {
+  // if (!papplSystemLoadState(system, brf_statefile))
+  // {
     // No old state, use defaults and auto-add printers...
+
     papplSystemSetDNSSDName(system, system_name ? system_name : "brf");
 
     papplLog(system, PAPPL_LOGLEVEL_INFO, "Auto-adding printers...");
     papplDeviceList(PAPPL_DEVTYPE_USB, (pappl_device_cb_t)printer_cb, system, papplLogDevice, system);
-  }
+    // mkdir("/home/arun/BRF");
+    if(
+    !papplPrinterCreate(system, 0, "cups-brf", "gen_brf", NULL, "file:///home/arun/BRF-Embosser")){
+      printf("**************%d\n", errno);
+    }
+    else{
+      printf("*******************Added******************\n");
+    }
+  // }
 
   return (system);
 }
@@ -511,11 +527,11 @@ typedef struct brf_spooling_conversion_s
 static brf_spooling_conversion_t brf_convert_pdf_to_brf =
     {
         "application/pdf",
-        "application/vnd.cups-paged-brf",
+        "application/vnd.cups-brf",
         1,
         {{cfFilterExternal,
           NULL,
-          "txttobrf"}}};
+          "texttobrf"}}};
 
 bool // O - `true` on success, `false` on failure
 BRFTestFilterCB(
@@ -577,19 +593,19 @@ BRFTestFilterCB(
   //  whether the job got
   //  canceled
 
-  filter_data->iscanceleddata = job;
+  // filter_data->iscanceleddata = job;
 
 
   // // Load the printer's assigned PPD file, and find out which PPD option
   // // seetings correspond to our job options
 
 
-  // papplLogJob(job, PAPPL_LOGLEVEL_DEBUG,
-  //             "Printing job in spooling mode");
+  papplLogJob(job, PAPPL_LOGLEVEL_DEBUG,
+              "Printing job in spooling mode");
 
-  // filter_data_ext =
-  //     (ppd_filter_data_ext_t *)cf_filter_external_tilterDataGetExt(filter_data,
-  //                                                 PPD_FILTER_DATA_EXT);
+//   filter_data_ext =
+// (ppd_filter_data_ext_t *)cf_filter_external_filterDataGetExt(filter_data,
+//                                                   PPD_FILTER_DATA_EXT);
 
   // Open the input file...
 
@@ -607,36 +623,33 @@ BRFTestFilterCB(
   papplLogJob(job, PAPPL_LOGLEVEL_DEBUG,
               "Input file format: %s", informat);
 
+  printf("*********testcbfilter-called***************\n");
+
   // Passing values to ppdFilterExternalCUPS()
 
   filter_data_ext = (cf_filter_external_t *)calloc(1, sizeof(cf_filter_external_t));
 
-  filter_data_ext->filter = "usr/lib/cups/filter/txttobrf";
+  filter_data_ext->filter = "/usr/lib/cups/filter/texttobrf";
   filter_data_ext->num_options = 0;
   filter_data_ext->options = NULL;
   filter_data_ext->envp = NULL;
+  filter_data->logfunc = cfCUPSLogFunc;
 
   // Find filters to use for this job
 
-  for (conversion =
-           (brf_spooling_conversion_t *)
-               cupsArrayFirst(spooling_conversions);
-       conversion;
-       conversion =
-           (brf_spooling_conversion_t *)
-               cupsArrayNext(spooling_conversions))
 
-  {
-    if (strcmp(conversion->srctype, informat) == 0)
+conversion=&brf_convert_pdf_to_brf;
 
-      break;
-  }
+
   if (conversion == NULL)
   {
     papplLogJob(job, PAPPL_LOGLEVEL_ERROR,
                 "No pre-filter found for input format %s",
                 informat);
     return (false);
+  }
+  else{
+    printf("******%d**************\n",errno);
   }
 
   // Set input and output formats for the filter chain
@@ -693,12 +706,21 @@ BRFTestFilterCB(
 
   papplJobSetImpressions(job, 1);
 
+  // if(papplJobSetImpressions(job, 1)){
+  //   printf("****************setImpression-ran*********\n");
+  // }
+  // else{
+  //   printf("***********************setImpression-notran*****************\n");
+  // }
   // The filter chain has no output, data is going to the device
   nullfd = open("/dev/null", O_RDWR);
 
-  if (cfFilterChain(fd, nullfd, 1, filter_data, chain) == 0)
+  if (cfFilterChain(fd, nullfd, 1, filter_data, chain) == 0){
+      printf("****************************cffilterchain-run******************\n");
     ret = true;
-
+  }
+  else
+    printf("*************cf filter chain not run ********%d*******************\n",errno);
   // Update status
 
   // pr_update_status(papplJobGetPrinter(job), device);
@@ -787,73 +809,3 @@ brf_print_filter_function(int inputfd,            // I - File descriptor input
 }
 
 
-// for text to brf conversion and then pushing into embosser
-
-static bool
-send_brf_to_embosser(pappl_job_t *job, pappl_device_t *device, const char *brf_file)
-{
-    FILE *fp;
-    char buffer[8192]; // Buffer for reading BRF file
-    size_t bytes_read;
-    ssize_t bytes_written;
-
-    // Open the BRF file
-    fp = fopen(brf_file, "rb");
-    if (!fp)
-    {
-        papplJobLog(job, PAPPL_LOGLEVEL_ERROR, "Unable to open BRF file: %s\n", brf_file);
-        return false;
-    }
-
-    // Open the embosser device
-    if (!papplDeviceOpen(device, papplPrinterGetDeviceURI(papplJobGetPrinter(job)), "w"))
-    {
-        fclose(fp);
-        papplJobLog(job, PAPPL_LOGLEVEL_ERROR, "Unable to open device for embosser.\n");
-        return false;
-    }
-
-    // Read the BRF file and send it to the embosser
-    while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0)
-    {
-        bytes_written = papplDeviceWrite(device, buffer, bytes_read);
-        if (bytes_written < 0)
-        {
-            fclose(fp);
-            papplDeviceClose(device);
-            papplJobLog(job, PAPPL_LOGLEVEL_ERROR, "Error writing to embosser.\n");
-            return false;
-        }
-    }
-
-    // Close the file and the device
-    fclose(fp);
-    papplDeviceClose(device);
-
-    papplJobLog(job, PAPPL_LOGLEVEL_INFO, "BRF file successfully sent to embosser.\n");
-
-    return true;
-}
-
-static bool
-process_job(pappl_job_t *job, pappl_device_t *device)
-{
-  const char *input_file = papplJobGetFilename(job);
-  const char *output_file = "/home/arun/output/output.brf";
-  const char *logFile = "/home/arun/open-printing/logs/Braille-printer-app";
-  int ret;
-
-  // Translate text file to BRF
-  ret = lbu_translateFile(NULL, input_file,
-                          output_file, logFile, NULL, 0);
-
-  if (ret == 0)
-  {
-    papplJobLog(job, PAPPL_LOGLEVEL_ERROR, "Error translating text file to BRF\n");
-    return false;
-  }
-
-  send_brf_to_embosser(job, device, output_file);
-
-  return true;
-}

@@ -44,7 +44,7 @@ TARGETS		=	\
 
 # General build rules...
 .SUFFIXES:	.c .o
-.c.o:
+.c.o: $<
 	echo "Compiling $<..."
 	$(CC) $(CFLAGS) -c -o $@ $<
 
