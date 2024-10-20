@@ -26,9 +26,9 @@ unitdir 	=	`pkg-config --variable=systemdsystemunitdir systemd`
 # Compiler/linker options...
 CSFLAGS		=	-s "$${CODESIGN_IDENTITY:=-}" --timestamp -o runtime
 CFLAGS		=	$(CPPFLAGS) $(OPTIM)
-CPPFLAGS	=	'-DVERSION="$(VERSION)"' `pkg-config --cflags cups` `pkg-config --cflags libcupsfilters``pkg-config --cflags pappl` $(OPTIONS)
-LDFLAGS		=	$(OPTIM)
-LIBS		=	`pkg-config --libs pappl` `pkg-config --libs libcupsfilters` `pkg-config --libs cups` -lm
+CPPFLAGS	=	'-DVERSION="$(VERSION)"' `pkg-config --cflags cups` `pkg-config --cflags libcupsfilters` `pkg-config --cflags pappl` `pkg-config --cflags liblouisutdml` $(OPTIONS)
+LDFLAGS		=	$(OPTIM) `pkg-config --libs liblouisutdml`
+LIBS		=	`pkg-config --libs pappl` `pkg-config --libs libcupsfilters` `pkg-config --libs cups` -llouisutdml -lm
 OPTIM		=	-Os -g
 
 
@@ -76,4 +76,3 @@ brf-printer-app:	$(OBJS)
 	$(CC) $(LDFLAGS) -o $@ brf-printer-app.o generic-brf.o $(LIBS)
 
 $(OBJS):	 Makefile
-

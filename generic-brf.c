@@ -66,10 +66,10 @@ brf_gen(
   driver_data->left_right = 635; // 1/4" left and right
   driver_data->bottom_top = 1270;
 
+
   driver_data->media_default.bottom_margin = driver_data->bottom_top;
   driver_data->media_default.left_margin = driver_data->left_right;
   driver_data->media_default.right_margin = driver_data->left_right;
-
   driver_data->media_default.top_margin = driver_data->bottom_top;
   /* Three paper trays (MSN names) */
   driver_data->num_source = 3;

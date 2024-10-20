@@ -8,13 +8,254 @@
 #include <pappl/pappl.h>
 #include <liblouisutdml/liblouisutdml.h>
 #include <cups/backend.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Include necessary headers...
+
+#include <pappl/pappl.h>
+#include <math.h>
+
+#define brf_TESTPAGE_MIMETYPE "application/vnd.cups-brf";
+
+// Local functions...
+
+static bool brf_gen_printfile(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
+static bool brf_gen_rendjob(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
+static bool brf_gen_rendpage(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device, unsigned page);
+static bool brf_gen_rstartjob(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
+static bool brf_gen_rstartpage(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device, unsigned page);
+static bool brf_gen_status(pappl_printer_t *printer);
+static bool brf_gen_rwriteline(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device, unsigned y, const unsigned char *line);
+
+static const char *const brf_gen_media[] =
+    { // Supported media sizes for Generic BRF printers
+        "na_legal_8.5x14in",
+        "na_letter_8.5x11in",
+        "na_executive_7x10in",
+        "iso_a4_210x297mm",
+        "iso_a5_148x210mm",
+        "jis_b5_182x257mm",
+        "iso_b5_176x250mm",
+        "na_number-10_4.125x9.5in",
+        "iso_c5_162x229mm",
+        "iso_dl_110x220mm",
+        "na_monarch_3.875x7.5in"};
+
+bool // O - `true` on success, `false` on error
+brf_gen(
+    pappl_system_t *system,              // I - System
+    const char *driver_name,             // I - Driver name
+    const char *device_uri,              // I - Device URI
+    const char *device_id,               // I - 1284 device ID
+    pappl_pr_driver_data_t *driver_data, // I - Pointer to driver data
+    ipp_t **attrs,                       // O - Pointer to driver attributes
+    void *cbdata)                        // I - Callback data (not used)
+{
+  driver_data->printfile_cb = brf_gen_printfile;
+  driver_data->rendjob_cb = brf_gen_rendjob;
+  driver_data->rendpage_cb = brf_gen_rendpage;
+  driver_data->rstartjob_cb = brf_gen_rstartjob;
+  driver_data->rstartpage_cb = brf_gen_rstartpage;
+  driver_data->rwriteline_cb = brf_gen_rwriteline;
+  driver_data->status_cb = brf_gen_status;
+  driver_data->format = brf_TESTPAGE_MIMETYPE;
+
+  driver_data->num_resolution = 1;
+  driver_data->x_resolution[0] = 200;
+  driver_data->y_resolution[0] = 200;
+  // driver_data->x_resolution[1] = 300;
+  // driver_data->y_resolution[1] = 300;
+
+  driver_data->x_default = driver_data->y_default = driver_data->x_resolution[0];
+
+  driver_data->num_media = (int)(sizeof(brf_gen_media) / sizeof(brf_gen_media[0]));
+  memcpy(driver_data->media, brf_gen_media, sizeof(brf_gen_media));
+
+  papplCopyString(driver_data->media_default.size_name, "iso_a4_210x297mm", sizeof(driver_data->media_default.size_name));
+  driver_data->media_default.size_width = 1 * 21000;
+  driver_data->media_default.size_length = 1 * 29700;
+  driver_data->left_right = 635; // 1/4" left and right
+  driver_data->bottom_top = 1270;
+
+
+  driver_data->media_default.bottom_margin = driver_data->bottom_top;
+  driver_data->media_default.left_margin = driver_data->left_right;
+  driver_data->media_default.right_margin = driver_data->left_right;
+  driver_data->media_default.top_margin = driver_data->bottom_top;
+  /* Three paper trays (MSN names) */
+  driver_data->num_source = 3;
+  driver_data->source[0] = "tray-1";
+  driver_data->source[1] = "manual";
+  driver_data->source[2] = "envelope";
+  // a types (MSN names) */
+  driver_data->num_type = 8;
+  driver_data->type[0] = "stationery";
+  driver_data->type[1] = "stationery-inkjet";
+  driver_data->type[2] = "stationery-letterhead";
+  driver_data->type[3] = "cardstock";
+  driver_data->type[4] = "labels";
+  driver_data->type[5] = "envelope";
+  driver_data->type[6] = "transparency";
+  driver_data->type[7] = "photographic";
+  papplCopyString(driver_data->media_default.source, "tray-1", sizeof(driver_data->media_default.source));
+  papplCopyString(driver_data->media_default.type, "labels", sizeof(driver_data->media_default.type));
+  driver_data->media_ready[0] = driver_data->media_default;
+
+  printf("************************gen-brf-called *********************************\n");
+
+  return (true);
+}
+
+// 'Brf_generic_print()' - Print a file.
+
+static bool // O - `true` on success, `false` on failure
+brf_gen_printfile(
+    pappl_job_t *job,            // I - Job
+    pappl_pr_options_t *options, // I - Job options
+    pappl_device_t *device)      // I - Output device
+{
+  int fd;             // Input file
+  ssize_t bytes;      // Bytes read/written
+  char buffer[65536]; // Read/write buffer
+
+  // Copy the raw file...
+  papplJobSetImpressions(job, 1);
+
+  if ((fd = open(papplJobGetFilename(job), O_RDONLY)) < 0)
+  {
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to open print file '%s': %s", papplJobGetFilename(job), strerror(errno));
+    return (false);
+  }
+
+  while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
+  {
+    if (papplDeviceWrite(device, buffer, (size_t)bytes) < 0)
+    {
+      papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to send %d bytes to printer.", (int)bytes);
+      close(fd);
+      return (false);
+    }
+  }
+  close(fd);
+
+  papplJobSetImpressionsCompleted(job, 1);
+
+  return (true);
+}
+
+// 'Brf_generic_rendjob()' - End a job.
+
+static bool // O - `true` on success, `false` on failure
+brf_gen_rendjob(
+    pappl_job_t *job,            // I - Job
+    pappl_pr_options_t *options, // I - Job options
+    pappl_device_t *device)      // I - Output device
+{
+  (void)job;
+  (void)options;
+  (void)device;
+
+  return (true);
+}
+
+// 'Brf_generic_rendpage()' - End a page.
+
+static bool // O - `true` on success, `false` on failure
+brf_gen_rendpage(
+    pappl_job_t *job,            // I - Job
+    pappl_pr_options_t *options, // I - Job options
+    pappl_device_t *device,      // I - Output device
+    unsigned page)               // I - Page number
+{
+  (void)job;
+  (void)page;
+
+  papplDevicePuts(device, "P1\n");
+
+  return (true);
+}
+
+// 'Brf_generic_rstartjob()' - Start a job.
+
+static bool // O - `true` on success, `false` on failure
+brf_gen_rstartjob(
+    pappl_job_t *job,            // I - Job
+    pappl_pr_options_t *options, // I - Job options
+    pappl_device_t *device)      // I - Output device
+{
+  (void)job;
+  (void)options;
+  (void)device;
+
+  return (true);
+}
+
+// 'brf_gen_rwriteline()' - Write a raster line.
+
+static bool // O - `true` on success, `false` on failure
+brf_gen_rwriteline(
+    pappl_job_t *job,            // I - Job
+    pappl_pr_options_t *options, // I - Job options
+    pappl_device_t *device,      // I - Output device
+    unsigned y,                  // I - Line number
+    const unsigned char *line)   // I - Line
+{
+  if (line[0] || memcmp(line, line + 1, options->header.cupsBytesPerLine - 1))
+  {
+    unsigned i;                   // Looping var
+    const unsigned char *lineptr; // Pointer into line
+    unsigned char buffer[300],
+        *bufptr; // Pointer into buffer
+
+    for (i = options->header.cupsBytesPerLine, lineptr = line, bufptr = buffer; i > 0; i--)
+      *bufptr++ = ~*lineptr++;
+
+    papplDevicePrintf(device, "GW0,%u,%u,1\n", y, options->header.cupsBytesPerLine);
+    papplDeviceWrite(device, buffer, options->header.cupsBytesPerLine);
+    papplDevicePuts(device, "\n");
+  }
+
+  return (true);
+}
+
+// 'Brf_generic_rstartpage()' - Start a page.
+
+static bool // O - `true` on success, `false` on failure
+brf_gen_rstartpage(
+    pappl_job_t *job,            // I - Job
+    pappl_pr_options_t *options, // I - Job options
+    pappl_device_t *device,      // I - Output device
+    unsigned page)               // I - Page number
+{
+  int ips; // Inches per second
+
+  (void)job;
+  (void)page;
+
+  papplDevicePuts(device, "\nN\n");
+
+  return (true);
+}
+
+// 'Brf_generic_status()' - Get current printer status.
+
+static bool // O - `true` on success, `false` on failure
+brf_gen_status(
+    pappl_printer_t *printer) // I - Printer
+{
+  (void)printer;
+
+  return (true);
+}
 
 
 #define brf_TESTPAGE_HEADER "T*E*S*T*P*A*G*E*"
 #define brf_TESTPAGE_MIMETYPE "application/vnd.cups-brf"
 
 extern bool brf_gen(pappl_system_t *system, const char *driver_name, const char *device_uri, const char *device_id, pappl_pr_driver_data_t *data, ipp_t **attrs, void *cbdata);
-// extern char *strdup(const char *);
+extern char *strdup(const char *);
 //
 // Local functions...
 //
@@ -58,7 +299,7 @@ main(int argc,     // I - Number of command-line arguments
 {
   return (papplMainloop(argc, argv,
                         "1.0",
-                        NULL,
+                        "Arun Patwa 2024",
                         (int)(sizeof(brf_drivers) / sizeof(brf_drivers[0])),
                         brf_drivers, autoadd_cb, driver_cb,
                         /*subcmd_name*/ NULL, /*subcmd_cb*/ NULL,
@@ -226,9 +467,6 @@ driver_cb(
   // "sides" values...
   data->sides_supported = PAPPL_SIDES_ONE_SIDED;
   data->sides_default = PAPPL_SIDES_ONE_SIDED;
-
-  // data->format = brf_TESTPAGE_MIMETYPE;
-
 
   // "orientation-requested-default" value...
   data->orient_default = IPP_ORIENT_NONE;
@@ -524,14 +762,27 @@ typedef struct brf_spooling_conversion_s
                                          // parameters
 } brf_spooling_conversion_t;
 
+
+char *filter_envp[] = {  "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd","CONTENT_TYPE=application/pdf", NULL };
+
+static cf_filter_external_t texttobrf_filter = {
+
+  .filter = "/usr/lib/cups/filter/texttobrf",
+  .envp = filter_envp,
+
+};
+
+
+
 static brf_spooling_conversion_t brf_convert_pdf_to_brf =
     {
         "application/pdf",
         "application/vnd.cups-brf",
         1,
         {{cfFilterExternal,
-          NULL,
+          &texttobrf_filter,
           "texttobrf"}}};
+
 
 bool // O - `true` on success, `false` on failure
 BRFTestFilterCB(
@@ -539,273 +790,427 @@ BRFTestFilterCB(
     pappl_device_t *device, // I - Output device
     void *cbdata)           // I - Callback data (not used)
 {
-  pappl_pr_options_t *job_options = papplJobCreatePrintOptions(job, INT_MAX, 0);
-  brf_spooling_conversion_t *conversion;     // Spooling conversion to use
-                                             // for pre-filtering
-  cf_filter_filter_in_chain_t *chain_filter, // Filter from PPD file
-      *print;
-  brf_cups_device_data_t *device_data = NULL;
-  cf_filter_external_t *filter_data_ext;
-  brf_print_filter_function_data_t *print_params;
-  brf_printer_app_global_data_t *global_data;
-  cf_filter_data_t *filter_data;
-  cups_array_t *spooling_conversions;
-  cups_array_t *chain;
-  const char *informat;
-  const char *filename; // Input filename
-  int fd;               // Input file descriptor
+    int i;
+    brf_printer_app_global_data_t *global_data=(brf_printer_app_global_data_t *)cbdata;;
+    brf_cups_device_data_t *device_data = NULL;
+    // brf_job_data_t * job_data; 
+    const char *informat;
+    const char *filename; // Input filename
+    int fd;               // Input file descriptor
+    brf_spooling_conversion_t *conversion;     // Spooling conversion to use for pre-filtering
+    cups_array_t *spooling_conversions;
+    cf_filter_filter_in_chain_t *chain_filter, // Filter from PPD file
+                                *print;
+    cf_filter_external_t *filter_data_ext;
+    brf_print_filter_function_data_t *print_params;
+    cf_filter_data_t *filter_data;
+    cups_array_t *chain;
+    int nullfd;           // File descriptor for /dev/null
 
-  int nullfd; // File descriptor for /dev/null
+    bool ret = false;    // Return value
+    int num_options = 0; // Number of PPD print options
 
-  bool ret = false;    // Return value
-  int num_options = 0; // Number of PPD print options
-  cups_option_t *options = NULL;
-  cf_filter_external_t *ext_filter_params;
+    pappl_pr_options_t *job_options = papplJobCreatePrintOptions(job, INT_MAX, 0);
 
-  pappl_pr_driver_data_t driver_data;
-  pappl_printer_t *printer = papplJobGetPrinter(job);
-  const char *device_uri = papplPrinterGetDeviceURI(printer);
+    cups_option_t *options = NULL;
+    cf_filter_external_t *ext_filter_params;
 
-  // Prepare job data to be supplied to filter functions/CUPS filters
-  // called during job execution
-
-  filter_data = (cf_filter_data_t *)calloc(1, sizeof(cf_filter_data_t));
-
-  // job_data->filter_data = filter_data;
-  filter_data->printer = strdup(papplPrinterGetName(printer));
-  filter_data->job_id = papplJobGetID(job);
-  filter_data->job_user = strdup(papplJobGetUsername(job));
-  filter_data->job_title = strdup(papplJobGetName(job));
-  filter_data->copies = job_options->copies;
-  filter_data->job_attrs = NULL;     // We use PPD/filter options
-  filter_data->printer_attrs = NULL; // We use the printer's PPD file
-  filter_data->num_options = num_options;
-  filter_data->options = options; // PPD/filter options
-  filter_data->extension = NULL;
-  filter_data->back_pipe[0] = -1;
-
-  filter_data->back_pipe[1] = -1;
-  filter_data->side_pipe[0] = -1;
-  filter_data->side_pipe[1] = -1;
-  filter_data->logdata = job;
-
-  // filter_data->iscanceledfunc = papplJobIsCanceled(job); // Function to indicate
-  //  whether the job got
-  //  canceled
-
-  // filter_data->iscanceleddata = job;
+    pappl_pr_driver_data_t driver_data;
+    pappl_printer_t *printer = papplJobGetPrinter(job);
+    const char *device_uri = papplPrinterGetDeviceURI(printer);
 
 
-  // // Load the printer's assigned PPD file, and find out which PPD option
-  // // seetings correspond to our job options
+    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Entering BRFTestFilterCB()");
 
-
-  papplLogJob(job, PAPPL_LOGLEVEL_DEBUG,
-              "Printing job in spooling mode");
-
-//   filter_data_ext =
-// (ppd_filter_data_ext_t *)cf_filter_external_filterDataGetExt(filter_data,
-//                                                   PPD_FILTER_DATA_EXT);
-
-  // Open the input file...
-
-  filename = papplJobGetFilename(job);
-  if ((fd = open(filename, O_RDONLY)) < 0)
-  {
-    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to open input file '%s' for printing: %s",
-                filename, strerror(errno));
-    return (false);
-  }
-
-  // Get input file format
-
-  informat = papplJobGetFormat(job);
-  papplLogJob(job, PAPPL_LOGLEVEL_DEBUG,
-              "Input file format: %s", informat);
-
-  printf("*********testcbfilter-called***************\n");
-
-  // Passing values to ppdFilterExternalCUPS()
-
-  filter_data_ext = (cf_filter_external_t *)calloc(1, sizeof(cf_filter_external_t));
-
-  filter_data_ext->filter = "/usr/lib/cups/filter/texttobrf";
-  filter_data_ext->num_options = 0;
-  filter_data_ext->options = NULL;
-  filter_data_ext->envp = NULL;
-  filter_data->logfunc = cfCUPSLogFunc;
-
-  // Find filters to use for this job
-
-
-conversion=&brf_convert_pdf_to_brf;
-
-
-  if (conversion == NULL)
-  {
-    papplLogJob(job, PAPPL_LOGLEVEL_ERROR,
-                "No pre-filter found for input format %s",
-                informat);
-    return (false);
-  }
-  else{
-    printf("******%d**************\n",errno);
-  }
-
-  // Set input and output formats for the filter chain
-
-  filter_data->content_type = conversion->srctype;
-  filter_data->final_content_type = conversion->dsttype;
-
-  // Connect the job's filter_data to the backend
-
-  if (strncmp(device_uri, "cups:", 5) == 0)
-  {
-    // Get the device data
-    device_data = (brf_cups_device_data_t *)papplDeviceGetData(device);
-
-    // Connect the filter_data
-    device_data->filter_data = filter_data;
-  }
-
-  // Set up filter function chain
-
-  chain = cupsArrayNew(NULL, NULL);
-
-  for (int i = 0; i < conversion->num_filters; i++)
-  {
-    cupsArrayAdd(chain, &(conversion->filters[i]));
-    cupsArrayAdd(chain, &(filter_data_ext));
-  }
-
-  chain_filter = NULL;
-  print =
-      (cf_filter_filter_in_chain_t *)calloc(1, sizeof(cf_filter_filter_in_chain_t));
-
-  // Put filter function to send data to PAPPL's built-in backend at the end
-  // of the chain
-
-  print_params =
-      (brf_print_filter_function_data_t *)
-          calloc(1, sizeof(brf_print_filter_function_data_t));
-  print_params->device = device;
-  print_params->device_uri = device_uri;
-  print_params->job = job;
-  print_params->global_data = global_data;
-  print->function = brf_print_filter_function;
-  print->parameters = print_params;
-  print->name = "Backend";
-  cupsArrayAdd(chain, print);
-
-
-  // Update status
-
-  // pr_update_status(papplJobGetPrinter(job), device);
-
-  // Fire up the filter functions
-
-  papplJobSetImpressions(job, 1);
-
-  // if(papplJobSetImpressions(job, 1)){
-  //   printf("****************setImpression-ran*********\n");
-  // }
-  // else{
-  //   printf("***********************setImpression-notran*****************\n");
-  // }
-  // The filter chain has no output, data is going to the device
-  nullfd = open("/dev/null", O_RDWR);
-
-  if (cfFilterChain(fd, nullfd, 1, filter_data, chain) == 0){
-      printf("****************************cffilterchain-run******************\n");
-    ret = true;
-  }
-  else
-    printf("*************cf filter chain not run ********%d*******************\n",errno);
-  // Update status
-
-  // pr_update_status(papplJobGetPrinter(job), device);
-
-  return (ret);
-}
-
-int                                               // O - Error status
-brf_print_filter_function(int inputfd,            // I - File descriptor input
-                                                  //     stream
-                          int outputfd,           // I - File descriptor output
-                                                  //     stream (unused)
-                          int inputseekable,      // I - Is input stream
-                                                  //     seekable? (unused)
-                          cf_filter_data_t *data, // I - Job and printer data
-                          void *parameters)       // I - PAPPL output device
-{
-  ssize_t bytes;                    // Bytes read/written
-  char buffer[65536];               // Read/write buffer
-  cf_logfunc_t log = data->logfunc; // Log function
-  void *ld = data->logdata;         // log function data
-  brf_print_filter_function_data_t *params =
-      (brf_print_filter_function_data_t *)parameters;
-  pappl_device_t *device = params->device; // PAPPL output device
-  pappl_job_t *job = params->job;
-  pappl_printer_t *printer;
-  brf_printer_app_global_data_t *global_data = params->global_data;
-  char filename[2048]; // Name for debug copy of the
-                       // job
-  int debug_fd = -1;   // File descriptor for debug copy
-
-  (void)inputseekable;
-
-  // Remove debug copies of old jobs
-  // pr_clean_debug_copies(global_data);
-
-  if (papplSystemGetLogLevel(global_data->system) == PAPPL_LOGLEVEL_DEBUG)
-  {
-    // We are in debug mode
-    // Debug copy file name (in spool directory)
-    printer = papplJobGetPrinter(job);
-    snprintf(filename, sizeof(filename), "%s/debug-jobdata-%s-%d.prn",
-             global_data->spool_dir, papplPrinterGetName(printer),
-             papplJobGetID(job));
-    if (log)
-      log(ld, CF_LOGLEVEL_DEBUG,
-          "Backend: Creating debug copy of what goes to the printer: %s", filename);
-    // Open the file
-    debug_fd = open(filename, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
-  }
-
-  while ((bytes = read(inputfd, buffer, sizeof(buffer))) > 0)
-  {
-    if (debug_fd >= 0)
-      if (write(debug_fd, buffer, (size_t)bytes) != bytes)
-      {
-        if (log)
-          log(ld, CF_LOGLEVEL_ERROR,
-              "Backend: Debug copy: Unable to write %d bytes, stopping debug copy, continuing job output.",
-              (int)bytes);
-        close(debug_fd);
-        debug_fd = -1;
-      }
-
-    if (papplDeviceWrite(device, buffer, (size_t)bytes) < 0)
-    {
-      if (log)
-        log(ld, CF_LOGLEVEL_ERROR,
-            "Backend: Output to device: Unable to send %d bytes to printer.",
-            (int)bytes);
-      if (debug_fd >= 0)
-        close(debug_fd);
-      close(inputfd);
-      close(outputfd);
-      return (1);
+    // Prepare job data to be supplied to filter functions/CUPS filters called during job execution
+    filter_data = (cf_filter_data_t *)calloc(1, sizeof(cf_filter_data_t));
+    if (!filter_data) {
+        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to allocate memory for filter_data");
+        return false;
     }
-  }
-  papplDeviceFlush(device);
+    
+    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Allocated memory for filter_data");
 
-  if (debug_fd >= 0)
-    close(debug_fd);
+    // Initialize filter_data fields
+    filter_data->printer = strdup(papplPrinterGetName(printer));
+    if (!filter_data->printer) {
+        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to allocate memory for printer name");
+        return false;
+    }
+    
+    filter_data->job_id = papplJobGetID(job);
+    filter_data->job_user = strdup(papplJobGetUsername(job));
+    if (!filter_data->job_user) {
+        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to allocate memory for job user");
+        return false;
+    }
+    
+    filter_data->job_title = strdup(papplJobGetName(job));
+    if (!filter_data->job_title) {
+        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to allocate memory for job title");
+        return false;
+    }
 
-  close(inputfd);
-  close(outputfd);
-  return (0);
+    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Job ID: %d, Job User: %s, Job Title: %s", 
+                filter_data->job_id, filter_data->job_user, filter_data->job_title);
+
+
+    filter_data->copies = job_options->copies;
+    filter_data->num_options = num_options;
+    filter_data->options = options; // PPD/filter options
+    filter_data->extension = NULL;
+    filter_data->back_pipe[0] = -1;
+    filter_data->back_pipe[1] = -1;
+    filter_data->side_pipe[0] = -1;
+    filter_data->side_pipe[1] = -1;
+    filter_data->logdata = job;
+    filter_data->logfunc = cfCUPSLogFunc;
+
+    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Filter data initialized");
+
+    // Open the input file...
+    filename = papplJobGetFilename(job);
+    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Opening input file: %s", filename);
+    if ((fd = open(filename, O_RDONLY)) < 0) {
+        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to open input file '%s': %s", filename, strerror(errno));
+        return false;
+    }
+
+    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Input file opened successfully");
+
+    // Get input file format
+    informat = papplJobGetFormat(job);
+    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Input file format: %s", informat);
+
+    // Initialize filter_data_ext for external filter
+    filter_data_ext = (cf_filter_external_t *)calloc(1, sizeof(cf_filter_external_t));
+    if (!filter_data_ext) {
+        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to allocate memory for filter_data_ext");
+        close(fd);
+        return false;
+    }
+    
+    filter_data_ext->filter = "/usr/lib/cups/filter/texttobrf";
+    filter_data_ext->num_options = 0;
+    filter_data_ext->options = NULL;
+    filter_data_ext->envp = NULL;
+
+
+    
+    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Assigned external filter: %s", filter_data_ext->filter);
+
+    // Assign spooling conversion
+    conversion = &brf_convert_pdf_to_brf;
+
+      // for (conversion =
+      //      (brf_spooling_conversion_t *)
+      //          cupsArrayFirst(global_data->config->spooling_conversions);
+      //  conversion;
+      //  conversion =
+      //      (brf_spooling_conversion_t *)
+      //          cupsArrayNext(global_data->config->spooling_conversions))
+   
+  // {
+  //   if (strcmp(conversion->srctype, informat) == 0)
+  //     printf("***************%d**********",informat);
+  //     // printf("*********************inside if****%d***********\n",conversion);
+  //     break;
+  // }
+
+  //  printf("*************************%d***********\n",conversion->srctype);
+
+    if (conversion == NULL) {
+        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "No pre-filter found for input format %s", informat);
+        close(fd);
+        return false;
+    }
+    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Using spooling conversion from %s to %s", conversion->srctype, conversion->dsttype);
+
+    // Set input and output formats for the filter chain
+    filter_data->content_type = conversion->srctype;
+    filter_data->final_content_type = conversion->dsttype;
+
+    // Connect the job's filter_data to the backend
+    if (strncmp(device_uri, "cups:", 5) == 0) {
+        // Get the device data
+        device_data = (brf_cups_device_data_t *)papplDeviceGetData(device);
+        if (device_data == NULL) {
+            papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to get device data");
+            close(fd);
+            return false;
+        }
+
+        // Connect the filter_data
+        device_data->filter_data = filter_data;
+        papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Connected filter_data to backend");
+    }
+
+    // Set up filter function chain
+    chain = cupsArrayNew(NULL, NULL);
+
+    for (int i = 0; i < conversion->num_filters; i++) {
+        cupsArrayAdd(chain, &(conversion->filters[i]));
+    }
+
+    // Add print filter function at the end of the chain
+    print = (cf_filter_filter_in_chain_t *)calloc(1, sizeof(cf_filter_filter_in_chain_t));
+    if (!print) {
+        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to allocate memory for print filter");
+        close(fd);
+        return false;
+    }
+
+    print_params = (brf_print_filter_function_data_t *)calloc(1, sizeof(brf_print_filter_function_data_t));
+    if (!print_params) {
+        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to allocate memory for print_params");
+        close(fd);
+        return false;
+    }
+
+    print_params->device = device;
+    print_params->device_uri = device_uri;
+    print_params->job = job;
+    print_params->global_data = global_data;
+    print->function = brf_print_filter_function;
+    print->parameters = print_params;
+    print->name = "Backend";
+    
+    cupsArrayAdd(chain, print);
+    
+    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Filter chain set up");
+
+    // Fire up the filter functions
+    papplJobSetImpressions(job, 1);
+    nullfd = open("/dev/null", O_RDWR);
+
+    if (cfFilterChain(fd, nullfd, 1, filter_data, chain) == 0) {
+        papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "cfFilterChain() completed successfully");
+        ret = true;
+    } else {
+        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "cfFilterChain() failed");
+    }
+
+   papplJobDeletePrintOptions(job_options);
+
+
+    
+    close(fd);
+    close(nullfd);
+    return ret;
+}
+
+int brf_print_filter_function(int inputfd, int outputfd, int inputseekable, cf_filter_data_t *data, void *parameters) {
+    ssize_t bytes;
+    char buffer[65536];
+    cf_logfunc_t log = data->logfunc;
+    void *ld = data->logdata;
+    brf_print_filter_function_data_t *params = (brf_print_filter_function_data_t *)parameters;
+    pappl_device_t *device = params->device;
+    pappl_job_t *job = params->job;
+    pappl_printer_t *printer;
+    brf_printer_app_global_data_t *global_data = params->global_data;
+    char filename[2048];
+    int debug_fd = -1;
+
+    // if (papplSystemGetLogLevel(global_data->system) == PAPPL_LOGLEVEL_DEBUG) {
+    //     printer = papplJobGetPrinter(job);
+    //     snprintf(filename, sizeof(filename), "/tmp/brf-printer-app.%d.log", papplPrinterGetID(printer));
+    //     debug_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    // }
+
+    while ((bytes = read(inputfd, buffer, sizeof(buffer))) > 0) {
+          // fprintf(stderr,"*****************FIRST**%zd**********\n",bytes);
+        if (debug_fd >= 0)
+            write(debug_fd, buffer, bytes);
+        if (papplDeviceWrite(device, buffer, (size_t)bytes) < 0){
+          // fprintf(stderr,"************SECOND*******%zd**********\n",bytes);
+        return 1;
+        }
+    }
+
+    papplDeviceFlush(device);
+    
+    if (debug_fd >= 0)
+        close(debug_fd);
+    return 0;
 }
 
 
+
+// bool // O - `true` on success, `false` on failure
+// BRFTestFilterCB(
+//     pappl_job_t *job,       // I - Job
+//     pappl_device_t *device, // I - Output device
+//     void *cbdata)           // I - Callback data (not used)
+// {
+//     const char *filename;      // Input filename
+//     const char *output_file;   // Output filename for BRF
+//     const char *logFile = "/tmp/brf_conversion_log.txt"; // Log file for conversion errors (optional)
+//     bool ret = false;          // Return value
+//     int output_fd = -1;        // File descriptor for output BRF file
+//     ssize_t bytes;             // Number of bytes read/written
+//     char buffer[65536];        // Buffer to hold data during file transfer
+
+//     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Entering BRFTestFilterCB()");
+
+//     // Get the input filename from the job
+//     filename = papplJobGetFilename(job);
+//     if (!filename) {
+//         papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to get input filename from job.");
+//         return false;
+//     }
+//     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Input file: %s", filename);
+
+//     // Create a temporary output file for the BRF result
+//     output_file = "/tmp/output.brf";  // You can dynamically generate this or use a job-specific path
+//     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Output BRF file will be saved to: %s", output_file);
+
+//     // Call the BRF conversion function
+//     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Starting BRF conversion using lbu_translateTextFile");
+
+  
+
+
+//     if (lbu_translateTextFile(NULL, filename, output_file, logFile, NULL, 0) != 0)
+//     {
+//         papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to convert text to BRF using lbu_translateTextFile");
+//         // Log the contents of the logFile if conversion fails
+//         FILE *log_fd = fopen(logFile, "r");
+//         if (log_fd) {
+//             papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Error details from log file:");
+//             char log_buffer[1024];
+//             while (fgets(log_buffer, sizeof(log_buffer), log_fd)) {
+//                 papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "%s", log_buffer);
+//             }
+//             fclose(log_fd);
+//         } else {
+//             papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Could not open conversion log file: %s", logFile);
+//         }
+//         return false;
+//     }
+//     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Text to BRF conversion completed successfully");
+
+//     // Attempt to open the output BRF file
+//     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Opening BRF output file: %s", output_file);
+//     if ((output_fd = open(output_file, O_RDONLY)) < 0) {
+//         papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to open BRF output file '%s': %s", output_file, strerror(errno));
+//         return false;
+//     }
+//     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "BRF output file opened successfully");
+
+//     // Send BRF output to the device
+//     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Sending BRF output to the device...");
+//     while ((bytes = read(output_fd, buffer, sizeof(buffer))) > 0) {
+//         papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Read %zd bytes from BRF output file", bytes);
+//         if (papplDeviceWrite(device, buffer, (size_t)bytes) < 0) {
+//             papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to write to device.");
+//             close(output_fd);
+//             return false;
+//         }
+//         papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Wrote %zd bytes to the device", bytes);
+//     }
+
+//     if (bytes < 0) {
+//         papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Error reading BRF output file: %s", strerror(errno));
+//         close(output_fd);
+//         return false;
+//     }
+
+//     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "BRF output sent to device successfully");
+
+//     // Close the output file
+//     if (output_fd >= 0) {
+//         papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Closing BRF output file.");
+//         close(output_fd);
+//     }
+
+//     // Set the return value to true if everything succeeded
+//     ret = true;
+    
+//     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Exiting BRFTestFilterCB()");
+//     return ret;
+// }
+
+
+
+// bool // O - `true` on success, `false` on failure
+// BRFTestFilterCB(
+//     pappl_job_t *job,       // I - Job
+//     pappl_device_t *device, // I - Output device
+//     void *cbdata)           // I - Callback data (not used)
+// {
+//   pappl_pr_options_t *job_options = papplJobCreatePrintOptions(job, INT_MAX, 0);
+//   brf_cups_device_data_t *device_data = NULL;
+//   brf_print_filter_function_data_t *print_params;
+//   const char *filename;    // Input filename
+//   char output_file[1024];  // Output filename
+//   char logFile[1024];      // Log file for the conversion
+//   int fd;                  // Input file descriptor
+//   bool ret = false;        // Return value
+//   FILE *output_fp = NULL;  // File pointer for output file
+//   char buffer[8192];       // Buffer for reading the BRF file
+//   ssize_t bytes_read;      // Number of bytes read from the file
+
+//   pappl_printer_t *printer = papplJobGetPrinter(job);
+//   const char *device_uri = papplPrinterGetDeviceURI(printer);
+
+//   // Open the input file...
+//   filename = papplJobGetFilename(job);
+//   if ((fd = open(filename, O_RDONLY)) < 0)
+//   {
+//     papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to open input file '%s' for printing: %s",
+//                 filename, strerror(errno));
+//     return (false);
+//   }
+
+//   // Prepare output and log file paths
+//   snprintf(output_file, sizeof(output_file), "/tmp/%d_output.brf", papplJobGetID(job));
+//   snprintf(logFile, sizeof(logFile), "/tmp/%d_log.txt", papplJobGetID(job));
+
+//   papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Starting text to BRF conversion using lbu_translateFile");
+
+//   // Call the conversion function
+//   if (lbu_translateTextFile(NULL, filename, output_file, logFile, NULL, 0) != 0)
+//   {
+//     papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to convert text to BRF using lbu_translateFile");
+//     return (false);
+//   }
+//   else{
+//     printf("*******************lbutranslate failed***%d*****\n",errno);
+//   }
+
+//   papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Successfully converted text to BRF: %s", output_file);
+
+//   // Open the output file for reading
+//   output_fp = fopen(output_file, "rb");
+//   if (!output_fp)
+//   {
+//     papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to open BRF output file '%s' for sending to the device: %s",
+//                 output_file, strerror(errno));
+//     return (false);
+//   }
+
+//   // Connect the job's output to the device (send output to the printer)
+//   papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Sending BRF file to device: %s", device_uri);
+
+//   while ((bytes_read = fread(buffer, 1, sizeof(buffer), output_fp)) > 0)
+//   {
+//     if (papplDeviceWrite(device, buffer, (size_t)bytes_read) < 0)
+//     {
+//       papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to send data to device: %s", strerror(errno));
+//       fclose(output_fp);
+//       return (false);
+//     }
+//   }
+
+//   fclose(output_fp);
+//   papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "BRF file successfully sent to the device");
+
+//   // Set impressions (this may depend on your application)
+//   papplJobSetImpressions(job, 1);
+
+//   // After conversion and processing
+//   ret = true;
+
+//   return ret;
+// }
