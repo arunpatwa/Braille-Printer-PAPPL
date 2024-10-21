@@ -1,0 +1,144 @@
+#always install libpappl-dev before installing pappl -> otherwise, it would not get installed...
+
+sudo apt-get install libpappl-dev
+
+# pappl-retrofit -> cups, libcupsfilters, pappl, libppd
+# libcupsfilters-> qpdf, ghostscript/mupdf
+
+# cups-filters-> cups, libcupsfilters,libppd, libcups
+
+$$ able to installed cups-filters .. without doing "sudo make on libcupsfilters"
+
+libppd -> libcups, libcupsfilters
+
+
+succesfully installed -> cups , libcups , cups-filters
+
+
+
+
+
+not succesfully installed -> 
+
+
+#getting below error -> while installing libcupsfilters
+
+cupsfilters/testfilters.c: In function 'run_test':
+cupsfilters/testfilters.c:1031:30: error: too few arguments to function 'cupsArrayNew'
+ 1031 |   cups_array_t* docformats = cupsArrayNew(NULL, NULL);
+      |                              ^~~~~~~~~~~~
+In file included from /usr/local/include/libcups3/cups/http.h:14,
+                 from /usr/local/include/libcups3/cups/ipp.h:14,
+                 from /usr/local/include/libcups3/cups/cups.h:15,
+                 from ./cupsfilters/filter.h:36,
+                 from cupsfilters/testfilters.c:4:
+/usr/local/include/libcups3/cups/array.h:59:26: note: declared here
+   59 | extern cups_array_t     *cupsArrayNew(cups_array_cb_t f, void *d, cups_ahash_cb_t hf, size_t hsize, cups_acopy_cb_t cf, cups_afree_cb_t ff) _CUPS_PUBLIC;
+      |                          ^~~~~~~~~~~~
+make[2]: *** [Makefile:1739: cupsfilters/libcupsfilters_la-testfilters.lo] Error 1
+make[2]: Leaving directory '/home/arun/braille-print/libcupsfilters'
+make[1]: *** [Makefile:2320: all-recursive] Error 1
+make[1]: Leaving directory '/home/arun/braille-print/libcupsfilters'
+make: *** [Makefile:1180: all] Error 2
+
+
+
+
+
+/etc/cups/cupsd.conf
+
+LogLevel warn
+
+debug
+
+/var/log/cups/*.logf
+
+
+
+iconv -f brf -t utf-8 < test.jpg.brf
+
+
+lbu_translateTextFile
+
+
+
+liblouisutdml/tools/file2brl.c
+
+
+
+gdb ./dirofbinary Lprint
+
+how to use gdb to debug c code ? 
+
+
+gdbserver
+
+
+
+
+
+13 OCT
+
+papplDeviceAddScheme
+
+/dev/ttyS0
+
+./pappl/system-webif.c
+
+papplDeviceAddScheme
+
+papplDeviceAddScheme("cups-brf", PAPPL_DEVTYPE_CUSTOM_LOCAL, list_brf, open_brf, close_brf, NULL, write_brf, NULL, NULL);
+list_brf would call the callback passed in its parameters, and return true
+
+
+mkdir("/home/arun/BRF");
+
+papplPrinterCreate(system, 0, "cups-brf", "Cups BRF", NULL, "file:///home/arun/BRF");
+
+
+gcc brf-printer-app.c -o brf-printer-app -lpappl -lcups -lcupsfilters -g 
+gcc -o brf-printer-app.o -lpappl -lcups -lcupsfilters
+gcc -c brf-printer-app.c -o brf-printer-app.o
+
+
+/etc/apt/sources.list
+
+deb-src http://archive.ubuntu.com/ubuntu/ mantic main restricted
+
+filter_data->logfunc = cfCUPSLogFunc;
+
+
+set follow-fork-mode  child
+
+
+apt build-dep libcupsfilters
+apt source libcupsfilters
+DEB_BUILD_OPTIONS=nostrip dpkg-buildpackage
+cd ..
+sudo dpkg -iO *.deb
+
+
+ulimit -c unlimited
+gcc brf-printer-app.c -o brf-printer-app -lpappl -lcups -lcupsfilters -g
+./brf-printer-app server -o log-file=- -o log-level=debug
+
+hit printer job...
+
+/var/crash
+/var/lib/apport/coredump
+
+gdb ./brf-printer-app /var/lib/apport/coredump/core._home_arun_open-printing_Braille-printer-app_brf-printer-app.0.be332caa-4e58-4bd4-9c99-5a361817db2b.
+
+
+
+
+https://documentation.ubuntu.com/server/reference/debugging/debug-symbol-packages/
+
+
+git pull --no-ff origin main ( UPSTREAM HAS NEW COMMITS BUT I HAVE NEW COMMITS )
+git reflog
+
+discuss about, how we are gonna add more filters into it...
+
+# for debugging libmagic...
+sudo apt-get install libmagic-dev 

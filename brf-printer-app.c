@@ -11,254 +11,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "brf-printer.h"
+
 
 // Include necessary headers...
 
-#include <pappl/pappl.h>
-#include <math.h>
-
-#define brf_TESTPAGE_MIMETYPE "application/vnd.cups-brf";
-
-// Local functions...
-
-static bool brf_gen_printfile(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
-static bool brf_gen_rendjob(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
-static bool brf_gen_rendpage(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device, unsigned page);
-static bool brf_gen_rstartjob(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
-static bool brf_gen_rstartpage(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device, unsigned page);
-static bool brf_gen_status(pappl_printer_t *printer);
-static bool brf_gen_rwriteline(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device, unsigned y, const unsigned char *line);
-
-static const char *const brf_gen_media[] =
-    { // Supported media sizes for Generic BRF printers
-        "na_legal_8.5x14in",
-        "na_letter_8.5x11in",
-        "na_executive_7x10in",
-        "iso_a4_210x297mm",
-        "iso_a5_148x210mm",
-        "jis_b5_182x257mm",
-        "iso_b5_176x250mm",
-        "na_number-10_4.125x9.5in",
-        "iso_c5_162x229mm",
-        "iso_dl_110x220mm",
-        "na_monarch_3.875x7.5in"};
-
-bool // O - `true` on success, `false` on error
-brf_gen(
-    pappl_system_t *system,              // I - System
-    const char *driver_name,             // I - Driver name
-    const char *device_uri,              // I - Device URI
-    const char *device_id,               // I - 1284 device ID
-    pappl_pr_driver_data_t *driver_data, // I - Pointer to driver data
-    ipp_t **attrs,                       // O - Pointer to driver attributes
-    void *cbdata)                        // I - Callback data (not used)
-{
-  driver_data->printfile_cb = brf_gen_printfile;
-  driver_data->rendjob_cb = brf_gen_rendjob;
-  driver_data->rendpage_cb = brf_gen_rendpage;
-  driver_data->rstartjob_cb = brf_gen_rstartjob;
-  driver_data->rstartpage_cb = brf_gen_rstartpage;
-  driver_data->rwriteline_cb = brf_gen_rwriteline;
-  driver_data->status_cb = brf_gen_status;
-  driver_data->format = brf_TESTPAGE_MIMETYPE;
-
-  driver_data->num_resolution = 1;
-  driver_data->x_resolution[0] = 200;
-  driver_data->y_resolution[0] = 200;
-  // driver_data->x_resolution[1] = 300;
-  // driver_data->y_resolution[1] = 300;
-
-  driver_data->x_default = driver_data->y_default = driver_data->x_resolution[0];
-
-  driver_data->num_media = (int)(sizeof(brf_gen_media) / sizeof(brf_gen_media[0]));
-  memcpy(driver_data->media, brf_gen_media, sizeof(brf_gen_media));
-
-  papplCopyString(driver_data->media_default.size_name, "iso_a4_210x297mm", sizeof(driver_data->media_default.size_name));
-  driver_data->media_default.size_width = 1 * 21000;
-  driver_data->media_default.size_length = 1 * 29700;
-  driver_data->left_right = 635; // 1/4" left and right
-  driver_data->bottom_top = 1270;
-
-
-  driver_data->media_default.bottom_margin = driver_data->bottom_top;
-  driver_data->media_default.left_margin = driver_data->left_right;
-  driver_data->media_default.right_margin = driver_data->left_right;
-  driver_data->media_default.top_margin = driver_data->bottom_top;
-  /* Three paper trays (MSN names) */
-  driver_data->num_source = 3;
-  driver_data->source[0] = "tray-1";
-  driver_data->source[1] = "manual";
-  driver_data->source[2] = "envelope";
-  // a types (MSN names) */
-  driver_data->num_type = 8;
-  driver_data->type[0] = "stationery";
-  driver_data->type[1] = "stationery-inkjet";
-  driver_data->type[2] = "stationery-letterhead";
-  driver_data->type[3] = "cardstock";
-  driver_data->type[4] = "labels";
-  driver_data->type[5] = "envelope";
-  driver_data->type[6] = "transparency";
-  driver_data->type[7] = "photographic";
-  papplCopyString(driver_data->media_default.source, "tray-1", sizeof(driver_data->media_default.source));
-  papplCopyString(driver_data->media_default.type, "labels", sizeof(driver_data->media_default.type));
-  driver_data->media_ready[0] = driver_data->media_default;
-
-  printf("************************gen-brf-called *********************************\n");
-
-  return (true);
-}
-
-// 'Brf_generic_print()' - Print a file.
-
-static bool // O - `true` on success, `false` on failure
-brf_gen_printfile(
-    pappl_job_t *job,            // I - Job
-    pappl_pr_options_t *options, // I - Job options
-    pappl_device_t *device)      // I - Output device
-{
-  int fd;             // Input file
-  ssize_t bytes;      // Bytes read/written
-  char buffer[65536]; // Read/write buffer
-
-  // Copy the raw file...
-  papplJobSetImpressions(job, 1);
-
-  if ((fd = open(papplJobGetFilename(job), O_RDONLY)) < 0)
-  {
-    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to open print file '%s': %s", papplJobGetFilename(job), strerror(errno));
-    return (false);
-  }
-
-  while ((bytes = read(fd, buffer, sizeof(buffer))) > 0)
-  {
-    if (papplDeviceWrite(device, buffer, (size_t)bytes) < 0)
-    {
-      papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to send %d bytes to printer.", (int)bytes);
-      close(fd);
-      return (false);
-    }
-  }
-  close(fd);
-
-  papplJobSetImpressionsCompleted(job, 1);
-
-  return (true);
-}
-
-// 'Brf_generic_rendjob()' - End a job.
-
-static bool // O - `true` on success, `false` on failure
-brf_gen_rendjob(
-    pappl_job_t *job,            // I - Job
-    pappl_pr_options_t *options, // I - Job options
-    pappl_device_t *device)      // I - Output device
-{
-  (void)job;
-  (void)options;
-  (void)device;
-
-  return (true);
-}
-
-// 'Brf_generic_rendpage()' - End a page.
-
-static bool // O - `true` on success, `false` on failure
-brf_gen_rendpage(
-    pappl_job_t *job,            // I - Job
-    pappl_pr_options_t *options, // I - Job options
-    pappl_device_t *device,      // I - Output device
-    unsigned page)               // I - Page number
-{
-  (void)job;
-  (void)page;
-
-  papplDevicePuts(device, "P1\n");
-
-  return (true);
-}
-
-// 'Brf_generic_rstartjob()' - Start a job.
-
-static bool // O - `true` on success, `false` on failure
-brf_gen_rstartjob(
-    pappl_job_t *job,            // I - Job
-    pappl_pr_options_t *options, // I - Job options
-    pappl_device_t *device)      // I - Output device
-{
-  (void)job;
-  (void)options;
-  (void)device;
-
-  return (true);
-}
-
-// 'brf_gen_rwriteline()' - Write a raster line.
-
-static bool // O - `true` on success, `false` on failure
-brf_gen_rwriteline(
-    pappl_job_t *job,            // I - Job
-    pappl_pr_options_t *options, // I - Job options
-    pappl_device_t *device,      // I - Output device
-    unsigned y,                  // I - Line number
-    const unsigned char *line)   // I - Line
-{
-  if (line[0] || memcmp(line, line + 1, options->header.cupsBytesPerLine - 1))
-  {
-    unsigned i;                   // Looping var
-    const unsigned char *lineptr; // Pointer into line
-    unsigned char buffer[300],
-        *bufptr; // Pointer into buffer
-
-    for (i = options->header.cupsBytesPerLine, lineptr = line, bufptr = buffer; i > 0; i--)
-      *bufptr++ = ~*lineptr++;
-
-    papplDevicePrintf(device, "GW0,%u,%u,1\n", y, options->header.cupsBytesPerLine);
-    papplDeviceWrite(device, buffer, options->header.cupsBytesPerLine);
-    papplDevicePuts(device, "\n");
-  }
-
-  return (true);
-}
-
-// 'Brf_generic_rstartpage()' - Start a page.
-
-static bool // O - `true` on success, `false` on failure
-brf_gen_rstartpage(
-    pappl_job_t *job,            // I - Job
-    pappl_pr_options_t *options, // I - Job options
-    pappl_device_t *device,      // I - Output device
-    unsigned page)               // I - Page number
-{
-  int ips; // Inches per second
-
-  (void)job;
-  (void)page;
-
-  papplDevicePuts(device, "\nN\n");
-
-  return (true);
-}
-
-// 'Brf_generic_status()' - Get current printer status.
-
-static bool // O - `true` on success, `false` on failure
-brf_gen_status(
-    pappl_printer_t *printer) // I - Printer
-{
-  (void)printer;
-
-  return (true);
-}
-
-
 #define brf_TESTPAGE_HEADER "T*E*S*T*P*A*G*E*"
 #define brf_TESTPAGE_MIMETYPE "application/vnd.cups-brf"
+#define brf_INPUT_TESTPAGE_MIMETYPE "text/plain"
 
 extern bool brf_gen(pappl_system_t *system, const char *driver_name, const char *device_uri, const char *device_id, pappl_pr_driver_data_t *data, ipp_t **attrs, void *cbdata);
 extern char *strdup(const char *);
+
 //
 // Local functions...
 //
+
 static bool BRFTestFilterCB(pappl_job_t *job, pappl_device_t *device, void *cbdata);
 
 static int brf_print_filter_function(int inputfd, int outputfd, int inputseekable, cf_filter_data_t *data, void *parameters);
@@ -299,7 +67,7 @@ main(int argc,     // I - Number of command-line arguments
 {
   return (papplMainloop(argc, argv,
                         "1.0",
-                        "Arun Patwa 2024",
+                        NULL,
                         (int)(sizeof(brf_drivers) / sizeof(brf_drivers[0])),
                         brf_drivers, autoadd_cb, driver_cb,
                         /*subcmd_name*/ NULL, /*subcmd_cb*/ NULL,
@@ -493,7 +261,7 @@ mime_cb(const unsigned char *header, // I - Header data
         void *cbdata)                // I - Callback data (not used)
 {
 
-  return (brf_TESTPAGE_MIMETYPE);
+  return (brf_INPUT_TESTPAGE_MIMETYPE);
 }
 
 // 'printer_cb()' - Try auto-adding printers.
@@ -648,7 +416,8 @@ system_cb(
 
   papplSystemSetMIMECallback(system, mime_cb, NULL);
 
-  papplSystemAddMIMEFilter(system, "application/pdf", brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, NULL);
+  // papplSystemAddMIMEFilter(system, "application/pdf", brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, NULL);
+  papplSystemAddMIMEFilter(system, brf_INPUT_TESTPAGE_MIMETYPE, brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, NULL);
 
   papplSystemSetPrinterDrivers(system, (int)(sizeof(brf_drivers) / sizeof(brf_drivers[0])), brf_drivers, autoadd_cb, /*create_cb*/ NULL, driver_cb, system);
 
@@ -670,7 +439,7 @@ system_cb(
     papplDeviceList(PAPPL_DEVTYPE_USB, (pappl_device_cb_t)printer_cb, system, papplLogDevice, system);
     // mkdir("/home/arun/BRF");
     if(
-    !papplPrinterCreate(system, 0, "cups-brf", "gen_brf", NULL, "file:///home/arun/BRF-Embosser")){
+    !papplPrinterCreate(system, 0, "cups-brf", "gen_brf", NULL, "file:///home/arun/open-printing/Braille-printer-app/BRF-Embosser")){
       printf("**************%d\n", errno);
     }
     else{
@@ -685,103 +454,6 @@ system_cb(
 
 // Items to configure the properties of this Printer Application
 // These items do not change while the Printer Application is running
-
-typedef struct brf_printer_app_config_s
-{
-  // Identification of the Printer Application
-  const char *system_name;           // Name of the system
-  const char *system_package_name;   // Name of Printer Application
-                                     // package/executable
-  const char *version;               // Program version number string
-  unsigned short numeric_version[4]; // Numeric program version
-  const char *web_if_footer;         // HTML Footer for web interface
-
-  pappl_pr_autoadd_cb_t autoadd_cb;
-
-  pappl_pr_identify_cb_t identify_cb;
-
-  pappl_pr_testpage_cb_t testpage_cb;
-
-  cups_array_t *spooling_conversions;
-
-  cups_array_t *stream_formats;
-  const char *backends_ignore;
-
-  const char *backends_only;
-
-  void *testpage_data;
-
-} pr_printer_app_config_t;
-
-typedef struct brf_printer_app_global_data_s
-{
-  pr_printer_app_config_t *config;
-  pappl_system_t *system;
-  int num_drivers;            // Number of drivers (from the PPDs)
-  pappl_pr_driver_t *drivers; // Driver index (for menu and
-                              // auto-add)
-  char spool_dir[1024];       // Spool directory, customizable via
-                              // SPOOL_DIR environment variable
-
-} brf_printer_app_global_data_t;
-
-// Data for brf_print_filter_function()
-typedef struct brf_print_filter_function_data_s
-// look-up table
-{
-  pappl_device_t *device;                     // Device
-  const char *device_uri;                     // Printer device URI
-  pappl_job_t *job;                           // Job
-  brf_printer_app_global_data_t *global_data; // Global data
-} brf_print_filter_function_data_t;
-
-typedef struct brf_cups_device_data_s
-{
-  const char *device_uri; // Device URI
-  int inputfd,            // FD for job data input
-      backfd,             // FD for back channel
-      sidefd;             // FD for side channel
-  int backend_pid;        // PID of CUPS backend
-  double back_timeout,    // Timeout back channel (sec)
-      side_timeout;       // Timeout side channel (sec)
-
-  cf_filter_filter_in_chain_t *chain_filter; // Filter from PPD file
-  cf_filter_data_t *filter_data;             // Common data for filter functions
-  cf_filter_external_t backend_params;       // Parameters for launching
-                                             // backend via ppdFilterExternalCUPS()
-  bool internal_filter_data;                 // Is filter_data
-                                             // internal?
-} brf_cups_device_data_t;
-
-typedef struct brf_spooling_conversion_s
-{
-  char *srctype;                         // Input data type
-  char *dsttype;                         // Output data type
-  int num_filters;                       // Number of filters
-  cf_filter_filter_in_chain_t filters[]; // List of filters with
-                                         // parameters
-} brf_spooling_conversion_t;
-
-
-char *filter_envp[] = {  "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd","CONTENT_TYPE=application/pdf", NULL };
-
-static cf_filter_external_t texttobrf_filter = {
-
-  .filter = "/usr/lib/cups/filter/texttobrf",
-  .envp = filter_envp,
-
-};
-
-
-
-static brf_spooling_conversion_t brf_convert_pdf_to_brf =
-    {
-        "application/pdf",
-        "application/vnd.cups-brf",
-        1,
-        {{cfFilterExternal,
-          &texttobrf_filter,
-          "texttobrf"}}};
 
 
 bool // O - `true` on success, `false` on failure
@@ -890,7 +562,7 @@ BRFTestFilterCB(
         return false;
     }
     
-    filter_data_ext->filter = "/usr/lib/cups/filter/texttobrf";
+    filter_data_ext->filter = texttobrf_filter.filter;
     filter_data_ext->num_options = 0;
     filter_data_ext->options = NULL;
     filter_data_ext->envp = NULL;
