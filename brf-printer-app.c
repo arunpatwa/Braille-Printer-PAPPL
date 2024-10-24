@@ -542,7 +542,8 @@ BRFTestFilterCB(
     void *cbdata)           // I - Callback data (not used)
 {
     int i;
-    brf_printer_app_global_data_t *global_data=(brf_printer_app_global_data_t *)cbdata;;
+    brf_printer_app_global_data_t *global_data=(brf_printer_app_global_data_t *)cbdata;
+
     brf_cups_device_data_t *device_data = NULL;
     // brf_job_data_t * job_data; 
     const char *informat;
@@ -665,17 +666,9 @@ BRFTestFilterCB(
     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Input file format: %s", informat);
 
 
-    spooling_conversions = cupsArrayNew(NULL, NULL);
-    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_text_to_brf);
-    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_pdf_to_brf);
-    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_html_to_brf);
-    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_jpeg_to_brf);
-    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_png_to_brf);
-    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_doc_to_brf);
-
-for (conversion = (brf_spooling_conversion_t *)cupsArrayFirst(spooling_conversions);
+for (conversion = (brf_spooling_conversion_t *)cupsArrayFirst(global_data->config->spooling_conversions);
      conversion;
-     conversion = (brf_spooling_conversion_t *)cupsArrayNext(spooling_conversions))
+     conversion = (brf_spooling_conversion_t *)cupsArrayNext(global_data->config->spooling_conversions))
 {
     // Compare source type with informat
     if (strcmp(conversion->srctype, informat) == 0) {
