@@ -1,1 +1,89 @@
 hey how are you doing
+
+
+
+// when calling inside the system_cb()
+//  (papplSystemAddMIMEFilter(system, "text/plain", brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, NULL));
+
+D [2024-10-23T11:42:06.563Z] Adding 'image/jpeg' to 'image/pwg-raster' filter.
+D [2024-10-23T11:42:06.563Z] Adding 'image/png' to 'image/pwg-raster' filter.
+I [2024-10-23T11:42:06.567Z] Listening for connections on '*:800'.
+I [2024-10-23T11:42:06.567Z] Listening for connections on '*:800'.
+D [2024-10-23T11:42:06.567Z] Adding 'text/plain' to 'application/vnd.cups-brf' filter.
+
+// calling papplSystemAddMIMEFilter() function using BRFsetup()... 
+//
+bool
+BRFSetup() 
+{
+  
+    (papplSystemAddMIMEFilter(system, "text/plain", brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, NULL));// not able to add 
+
+    printf("****************BRFSETUP IS CALLED**********************\n");
+}
+
+
+D [2024-10-23T11:43:19.856Z] Adding 'image/jpeg' to 'image/pwg-raster' filter.
+D [2024-10-23T11:43:19.856Z] Adding 'image/png' to 'image/pwg-raster' filter.
+I [2024-10-23T11:43:19.861Z] Listening for connections on '*:800'.
+I [2024-10-23T11:43:19.861Z] Listening for connections on '*:800'.
+****************BRFSETUP IS CALLED**********************
+brf: statefile='/root/.brf.conf'
+
+
+
+
+
+yeah, it was issue with system object.. from the BRFSetup() it is not able to access the system argument correctly....
+from —> (papplSystemAddMIMEFilter(system, "text/plain", brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, NULL)); -> that's why failing silently..
+
+If I wanted to add multiple papplSystemAddMIMEFilter() then need to create the BRFSetup() like this.... will make it more clean..
+
+static void
+BRFSetup()  // I - Global data 
+{
+
+   int num_options;        // I - Number options
+  cups_option_t *options; // I - Options
+    const char *val,           // Current option value
+      *hostname,             // Hostname, if any
+      *logfile,              // Log file, if any
+      *system_name;          // System name, if any
+    system_name = cupsGetOption("system-name", num_options, options);
+    pappl_loglevel_t loglevel; // Log level
+
+    pappl_system_t *system; 
+      pappl_soptions_t soptions = PAPPL_SOPTIONS_MULTI_QUEUE | PAPPL_SOPTIONS_WEB_INTERFACE | PAPPL_SOPTIONS_WEB_LOG | PAPPL_SOPTIONS_WEB_SECURITY;
+  // System options
+
+ if ((val = cupsGetOption("log-level", num_options, options)) != NULL)
+  {
+    if (!strcmp(val, "fatal"))
+      loglevel = PAPPL_LOGLEVEL_FATAL;
+    else if (!strcmp(val, "error"))
+      loglevel = PAPPL_LOGLEVEL_ERROR;
+    else if (!strcmp(val, "warn"))
+      loglevel = PAPPL_LOGLEVEL_WARN;
+    else if (!strcmp(val, "info"))
+      loglevel = PAPPL_LOGLEVEL_INFO;
+    else if (!strcmp(val, "debug"))
+      loglevel = PAPPL_LOGLEVEL_DEBUG;
+    else
+    {
+      fprintf(stderr, "brf: Bad log-level value '%s'.\n", val);
+      return (NULL);
+    }
+  }
+  else
+    loglevel = PAPPL_LOGLEVEL_UNSPEC;
+
+     if ((system = papplSystemCreate(soptions, system_name ? system_name : "Braille printer app", 0, "_print,_universal", cupsGetOption("spool-directory", num_options, options), logfile ? logfile : "-", loglevel, cupsGetOption("auth-service", num_options, options), /* tls_only */ false)) == NULL)
+    return (NULL);
+
+    if (system == NULL) {
+    printf("System object is NULL in BRFSetup.\n");
+    }
+    papplSystemAddMIMEFilter(system, "text/plain", brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, NULL);
+
+    printf("****************BRFSETUP IS CALLED**********************\n");
+}

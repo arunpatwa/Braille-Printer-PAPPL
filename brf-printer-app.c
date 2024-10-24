@@ -27,6 +27,26 @@ extern char *strdup(const char *);
 // Local functions...
 //
 
+// cups_array_t *spooling_conversions;
+
+// void initialize_spooling_conversions() {
+//     // Create the array
+//     spooling_conversions = cupsArrayNew(NULL, NULL);
+
+//     // Add conversions to the array
+//     cupsArrayAdd(spooling_conversions, (void *)&brf_convert_text_to_brf);
+//     cupsArrayAdd(spooling_conversions, (void *)&brf_convert_pdf_to_brf);
+//     cupsArrayAdd(spooling_conversions, (void *)&brf_convert_html_to_brf);
+//     cupsArrayAdd(spooling_conversions, (void *)&brf_convert_jpeg_to_brf);
+//     cupsArrayAdd(spooling_conversions, (void *)&brf_convert_png_to_brf);
+//     cupsArrayAdd(spooling_conversions, (void *)&brf_convert_doc_to_brf);
+
+//     printf("**************************initiallize_spooling_conversions************\n");
+// }
+
+
+
+
 static bool BRFTestFilterCB(pappl_job_t *job, pappl_device_t *device, void *cbdata);
 
 static int brf_print_filter_function(int inputfd, int outputfd, int inputseekable, cf_filter_data_t *data, void *parameters);
@@ -65,6 +85,29 @@ int                // O - Exit status
 main(int argc,     // I - Number of command-line arguments
      char *argv[]) // I - Command-line arguments
 {
+
+    cups_array_t *spooling_conversions;
+    spooling_conversions = cupsArrayNew(NULL, NULL);
+
+    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_text_to_brf);
+    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_pdf_to_brf);
+    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_html_to_brf);
+    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_jpeg_to_brf);
+    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_png_to_brf);
+    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_doc_to_brf);
+
+
+  brf_printer_app_config_t printer_app_config = {
+      .spooling_conversions = spooling_conversions
+  };
+
+  brf_printer_app_global_data_t global_data;
+
+  memset(&global_data, 0, sizeof(global_data));
+
+  global_data.config = &printer_app_config;
+
+
   return (papplMainloop(argc, argv,
                         "1.0",
                         NULL,
@@ -73,7 +116,7 @@ main(int argc,     // I - Number of command-line arguments
                         /*subcmd_name*/ NULL, /*subcmd_cb*/ NULL,
                         system_cb,
                         /*usage_cb*/ NULL,
-                        /*data*/ NULL));
+                        /*data*/ &global_data));
 }
 
 // 'autoadd_cb()' - Determine the proper driver for a given printer.
@@ -253,6 +296,38 @@ driver_cb(
   }
 }
 
+
+void
+BRFSetup(pappl_system_t *system,brf_printer_app_global_data_t* global_data) 
+{   
+    brf_spooling_conversion_t* conversion;
+
+  
+
+    // Track if the MIME filter was added successfully
+    bool filter_added = false;
+
+    for (conversion = (brf_spooling_conversion_t *)cupsArrayFirst(global_data->config->spooling_conversions);
+         conversion;
+         conversion = (brf_spooling_conversion_t *)cupsArrayNext(global_data->config->spooling_conversions))
+    {
+        // Log the attempt to add the filter
+        printf("Attempting to add MIME filter: %s -> %s\n", 
+               conversion->srctype, brf_TESTPAGE_MIMETYPE);
+
+        // Call the function (void, no return value)
+       papplSystemAddMIMEFilter(system, conversion->srctype, conversion->dsttype, BRFTestFilterCB,global_data);
+
+        // Set filter_added to true after calling the function
+        filter_added = true;
+
+        // Log success after the function call
+        printf("MIME filter added for: %s -> %s\n", 
+               conversion->srctype, conversion->dsttype);
+    }
+
+    printf("****************BRFSETUP IS CALLED**********************\n");
+}
 // 'mime_cb()' - MIME typing callback...
 
 static const char *                  // O - MIME media type or `NULL` if none
@@ -261,7 +336,8 @@ mime_cb(const unsigned char *header, // I - Header data
         void *cbdata)                // I - Callback data (not used)
 {
 
-  return (brf_INPUT_TESTPAGE_MIMETYPE);
+  printf("************************mimecbcalled********************\n");
+  return ("text/plain");
 }
 
 // 'printer_cb()' - Try auto-adding printers.
@@ -328,6 +404,8 @@ system_cb(
     cups_option_t *options, // I - Options
     void *data)             // I - Callback data (unused)
 {
+
+  brf_printer_app_global_data_t *global_data = (brf_printer_app_global_data_t *) data;
   pappl_system_t *system;    // System object
   const char *val,           // Current option value
       *hostname,             // Hostname, if any
@@ -407,17 +485,17 @@ system_cb(
   }
 #endif // _WIN32
 
-  // Create the system object...
+// Create the system object...
   if ((system = papplSystemCreate(soptions, system_name ? system_name : "Braille printer app", port, "_print,_universal", cupsGetOption("spool-directory", num_options, options), logfile ? logfile : "-", loglevel, cupsGetOption("auth-service", num_options, options), /* tls_only */ false)) == NULL)
     return (NULL);
 
   papplSystemAddListeners(system, NULL);
   papplSystemSetHostName(system, hostname);
-
+  // initialize_spooling_conversions();
+  
   papplSystemSetMIMECallback(system, mime_cb, NULL);
 
-  // papplSystemAddMIMEFilter(system, "application/pdf", brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, NULL);
-  papplSystemAddMIMEFilter(system, brf_INPUT_TESTPAGE_MIMETYPE, brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, NULL);
+  BRFSetup(system,global_data); 
 
   papplSystemSetPrinterDrivers(system, (int)(sizeof(brf_drivers) / sizeof(brf_drivers[0])), brf_drivers, autoadd_cb, /*create_cb*/ NULL, driver_cb, system);
 
@@ -436,8 +514,9 @@ system_cb(
     papplSystemSetDNSSDName(system, system_name ? system_name : "brf");
 
     papplLog(system, PAPPL_LOGLEVEL_INFO, "Auto-adding printers...");
+    
     papplDeviceList(PAPPL_DEVTYPE_USB, (pappl_device_cb_t)printer_cb, system, papplLogDevice, system);
-    // mkdir("/home/arun/BRF");
+    
     if(
     !papplPrinterCreate(system, 0, "cups-brf", "gen_brf", NULL, "file:///home/arun/open-printing/Braille-printer-app/BRF-Embosser")){
       printf("**************%d\n", errno);
@@ -445,7 +524,7 @@ system_cb(
     else{
       printf("*******************Added******************\n");
     }
-  // }
+
 
   return (system);
 }
@@ -492,6 +571,9 @@ BRFTestFilterCB(
     const char *device_uri = papplPrinterGetDeviceURI(printer);
 
 
+    job_options->print_content_optimize=brf_GetFileContentType(job);
+
+    
     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Entering BRFTestFilterCB()");
 
     // Prepare job data to be supplied to filter functions/CUPS filters called during job execution
@@ -538,7 +620,35 @@ BRFTestFilterCB(
     filter_data->logdata = job;
     filter_data->logfunc = cfCUPSLogFunc;
 
+    filter_data->logfunc =_brfJobLog; // Job log function catching page counts
+                                    // ("PAGE: XX YY" messages)
+    filter_data->logdata = job;
+    filter_data->iscanceledfunc = _brfJobIsCanceled; // Function to indicate
+                                                  // whether the job got
+                                                  // canceled
+    filter_data->iscanceleddata = job;
+
+    
+
     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Filter data initialized");
+
+
+
+    // Initialize filter_data_ext for external filter
+    filter_data_ext = (cf_filter_external_t *)calloc(1, sizeof(cf_filter_external_t));
+
+    if (!filter_data_ext) {
+        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to allocate memory for filter_data_ext");
+        close(fd);
+        return false;
+    }
+    
+    filter_data_ext->filter = texttobrf_filter.filter;
+    filter_data_ext->num_options = 0;
+    filter_data_ext->options = NULL;
+    filter_data_ext->envp = NULL;
+
+    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Assigned external filter: %s", filter_data_ext->filter);
 
     // Open the input file...
     filename = papplJobGetFilename(job);
@@ -554,42 +664,29 @@ BRFTestFilterCB(
     informat = papplJobGetFormat(job);
     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Input file format: %s", informat);
 
-    // Initialize filter_data_ext for external filter
-    filter_data_ext = (cf_filter_external_t *)calloc(1, sizeof(cf_filter_external_t));
-    if (!filter_data_ext) {
-        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to allocate memory for filter_data_ext");
-        close(fd);
-        return false;
+
+    spooling_conversions = cupsArrayNew(NULL, NULL);
+    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_text_to_brf);
+    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_pdf_to_brf);
+    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_html_to_brf);
+    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_jpeg_to_brf);
+    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_png_to_brf);
+    cupsArrayAdd(spooling_conversions, (void *)&brf_convert_doc_to_brf);
+
+for (conversion = (brf_spooling_conversion_t *)cupsArrayFirst(spooling_conversions);
+     conversion;
+     conversion = (brf_spooling_conversion_t *)cupsArrayNext(spooling_conversions))
+{
+    // Compare source type with informat
+    if (strcmp(conversion->srctype, informat) == 0) {
+        // Log the match details
+        printf("***********conversion_informat****%s**********\n", informat);
+        printf("***********conversion_srctype****%s**********\n", conversion->srctype);
+        break;  // Exit the loop when a match is found
     }
-    
-    filter_data_ext->filter = texttobrf_filter.filter;
-    filter_data_ext->num_options = 0;
-    filter_data_ext->options = NULL;
-    filter_data_ext->envp = NULL;
+}
 
-
-    
-    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Assigned external filter: %s", filter_data_ext->filter);
-
-    // Assign spooling conversion
-    conversion = &brf_convert_pdf_to_brf;
-
-      // for (conversion =
-      //      (brf_spooling_conversion_t *)
-      //          cupsArrayFirst(global_data->config->spooling_conversions);
-      //  conversion;
-      //  conversion =
-      //      (brf_spooling_conversion_t *)
-      //          cupsArrayNext(global_data->config->spooling_conversions))
-   
-  // {
-  //   if (strcmp(conversion->srctype, informat) == 0)
-  //     printf("***************%d**********",informat);
-  //     // printf("*********************inside if****%d***********\n",conversion);
-  //     break;
-  // }
-
-  //  printf("*************************%d***********\n",conversion->srctype);
+   printf("****************after if conversion_srctype*********%d***********\n",conversion->srctype);
 
     if (conversion == NULL) {
         papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "No pre-filter found for input format %s", informat);
@@ -601,6 +698,9 @@ BRFTestFilterCB(
     // Set input and output formats for the filter chain
     filter_data->content_type = conversion->srctype;
     filter_data->final_content_type = conversion->dsttype;
+
+
+     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG,"Converting input file to format: %s", conversion->dsttype);
 
     // Connect the job's filter_data to the backend
     if (strncmp(device_uri, "cups:", 5) == 0) {
