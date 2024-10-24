@@ -144,322 +144,119 @@ static cf_filter_external_t vectortoubrl_filter = {
         }
 };
 
-
-// extern brf_spooling_conversion_t* converts[] =
-// {
-//     {
-//       "text/plain",
-//       "application/vnd.cups-brf",
-//       1,
-//       {
-//           {cfFilterExternal,
-//           &texttobrf_filter,
-//           "texttobrf"
-//           }
-//       }
-//   },
-//   {
-//       "application/pdf",
-//       "application/vnd.cups-brf",
-//       1,
-//       {
-//           {cfFilterExternal,
-//           &texttobrf_filter,
-//           "texttobrf"
-//           }
-//       }
-//   },
-//   {
-//       "text/html",
-//       "application/vnd.cups-brf",
-//       1,
-//       {
-//           {cfFilterExternal,
-//           &texttobrf_filter,
-//           "texttobrf"
-//           }
-//       }
-//   },
-//   {
-//       "application/vnd.cups-brf",
-//       "application/vnd.cups-paged-brf",
-//       1,
-//       {
-//           {cfFilterExternal,
-//           &brftopagedbrf_filter,
-//           "brftopagedbrf"
-//           }
-//       }
-//   },
-//   {
-//       "application/vnd.cups-ubrl",
-//       "application/vnd.cups-paged-ubrl",
-//       1,
-//       {
-//           {cfFilterExternal,
-//           &brftopagedbrf_filter,
-//           "brftopagedbrf"
-//           }
-//       }
-//   },
-//   {
-//       "application/msword",
-//       "application/vnd.cups-brf",
-//       1,
-//       {
-//           {cfFilterExternal,
-//           &texttobrf_filter,
-//           "texttobrf"
-//           }
-//       }
-//   },
-//   {
-//       "text/rtf",
-//       "application/vnd.cups-brf",
-//       1,
-//       {
-//           {cfFilterExternal,
-//           &texttobrf_filter,
-//           "texttobrf"
-//           }
-//       }
-//   },
-//   {
-//       "application/rtf",
-//       "application/vnd.cups-brf",
-//       1,
-//       {
-//           {cfFilterExternal,
-//           &texttobrf_filter,
-//           "texttobrf"
-//           }
-//       }
-//   },
-//   {
-//       "image/jpeg",
-//       "image/vnd.cups-brf",
-//       1,
-//       {
-//           {cfFilterExternal,
-//           &imagetobrf_filter,
-//           "imagetobrf"
-//           }
-//       }
-//   },
-//   {
-//       "image/jpeg",
-//       "image/vnd.cups-ubrl",
-//       1,
-//       {
-//           {cfFilterExternal,
-//           &imagetoubrl_filter,
-//           "imagetoubrl"
-//           }
-//       }
-//   },
-//   {
-//       "image/vnd.cups-pdf",
-//       "image/vnd.cups-brf",
-//       1,
-//       {
-//           {cfFilterExternal,
-//           &vectortobrf_filter,
-//           "vectortobrf"
-//           }
-//       }
-//   },
-//   {
-//       "image/vnd.cups-pdf",
-//       "image/vnd.cups-ubrl",
-//       1,
-//       {
-//           {cfFilterExternal,
-//           &vectortoubrl_filter,
-//           "vectortoubrl"
-//           }
-//       }
-//   },
-//   {NULL},
-// }
-
-static brf_spooling_conversion_t brf_convert_text_to_brf =
+static brf_spooling_conversion_t *converts[] =
 {
-    "text/plain",
-    "application/vnd.cups-brf",
-    1,
-    {
-        {cfFilterExternal,
-        &texttobrf_filter,
-        "texttobrf"
+    &(brf_spooling_conversion_t){
+        "text/plain",
+        "application/vnd.cups-brf",
+        1,
+        {
+            {cfFilterExternal, &texttobrf_filter, "texttobrf"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_pdf_to_brf =
-{
-    "application/pdf",
-    "application/vnd.cups-brf",
-    1,
-    {
-        {cfFilterExternal,
-        &texttobrf_filter,
-        "texttobrf"
+    },
+    &(brf_spooling_conversion_t){
+        "application/pdf",
+        "application/vnd.cups-brf",
+        1,
+        {
+            {cfFilterExternal, &texttobrf_filter, "texttobrf"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_html_to_brf =
-{
-    "text/html",
-    "application/vnd.cups-brf",
-    1,
-    {
-        {cfFilterExternal,
-        &texttobrf_filter,
-        "texttobrf"
+    },
+    &(brf_spooling_conversion_t){
+        "text/html",
+        "application/vnd.cups-brf",
+        1,
+        {
+            {cfFilterExternal, &texttobrf_filter, "texttobrf"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_brf_to_paged_brf =
-{
-    "application/vnd.cups-brf",
-    "application/vnd.cups-paged-brf",
-    1,
-    {
-        {cfFilterExternal,
-        &brftopagedbrf_filter,
-        "brftopagedbrf"
+    },
+    &(brf_spooling_conversion_t){
+        "application/vnd.cups-brf",
+        "application/vnd.cups-paged-brf",
+        1,
+        {
+            {cfFilterExternal, &brftopagedbrf_filter, "brftopagedbrf"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_ubrl_to_paged_ubrl =
-{
-    "application/vnd.cups-ubrl",
-    "application/vnd.cups-paged-ubrl",
-    1,
-    {
-        {cfFilterExternal,
-        &brftopagedbrf_filter,
-        "brftopagedbrf"
+    },
+    &(brf_spooling_conversion_t){
+        "application/vnd.cups-ubrl",
+        "application/vnd.cups-paged-ubrl",
+        1,
+        {
+            {cfFilterExternal, &brftopagedbrf_filter, "brftopagedbrf"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_doc_to_brf =
-{
-    "application/msword",
-    "application/vnd.cups-brf",
-    1,
-    {
-        {cfFilterExternal,
-        &texttobrf_filter,
-        "texttobrf"
+    },
+    &(brf_spooling_conversion_t){
+        "application/msword",
+        "application/vnd.cups-brf",
+        1,
+        {
+            {cfFilterExternal, &texttobrf_filter, "texttobrf"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_rtf_text_to_brf =
-{
-    "text/rtf",
-    "application/vnd.cups-brf",
-    1,
-    {
-        {cfFilterExternal,
-        &texttobrf_filter,
-        "texttobrf"
+    },
+    &(brf_spooling_conversion_t){
+        "text/rtf",
+        "application/vnd.cups-brf",
+        1,
+        {
+            {cfFilterExternal, &texttobrf_filter, "texttobrf"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_rtf_app_to_brf =
-{
-    "application/rtf",
-    "application/vnd.cups-brf",
-    1,
-    {
-        {cfFilterExternal,
-        &texttobrf_filter,
-        "texttobrf"
+    },
+    &(brf_spooling_conversion_t){
+        "application/rtf",
+        "application/vnd.cups-brf",
+        1,
+        {
+            {cfFilterExternal, &texttobrf_filter, "texttobrf"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_jpeg_to_brf =
-{
-    "image/jpeg",
-    "image/vnd.cups-brf",
-    1,
-    {
-        {cfFilterExternal,
-        &imagetobrf_filter,
-        "imagetobrf"
+    },
+    &(brf_spooling_conversion_t){
+        "image/jpeg",
+        "image/vnd.cups-brf",
+        1,
+        {
+            {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_png_to_brf =
-{
-    "image/png",
-    "image/vnd.cups-brf",
-    1,
-    {
-        {cfFilterExternal,
-        &imagetobrf_filter,
-        "imagetobrf"
+    },
+    &(brf_spooling_conversion_t){
+        "image/png",
+        "image/vnd.cups-brf",
+        1,
+        {
+            {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_jpeg_to_ubrl =
-{
-    "image/jpeg",
-    "image/vnd.cups-ubrl",
-    1,
-    {
-        {cfFilterExternal,
-        &imagetoubrl_filter,
-        "imagetoubrl"
+    },
+    &(brf_spooling_conversion_t){
+        "image/jpeg",
+        "image/vnd.cups-ubrl",
+        1,
+        {
+            {cfFilterExternal, &imagetoubrl_filter, "imagetoubrl"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_png_to_ubrl =
-{
-    "image/png",
-    "image/vnd.cups-ubrl",
-    1,
-    {
-        {cfFilterExternal,
-        &imagetoubrl_filter,
-        "imagetoubrl"
+    },
+    &(brf_spooling_conversion_t){
+        "image/png",
+        "image/vnd.cups-ubrl",
+        1,
+        {
+            {cfFilterExternal, &imagetoubrl_filter, "imagetoubrl"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_vector_to_brf =
-{
-    "image/vnd.cups-pdf",
-    "image/vnd.cups-brf",
-    1,
-    {
-        {cfFilterExternal,
-        &vectortobrf_filter,
-        "vectortobrf"
+    },
+    &(brf_spooling_conversion_t){
+        "image/vnd.cups-pdf",
+        "image/vnd.cups-brf",
+        1,
+        {
+            {cfFilterExternal, &vectortobrf_filter, "vectortobrf"}
         }
-    }
-};
-
-static brf_spooling_conversion_t brf_convert_vector_to_ubrl =
-{
-    "image/vnd.cups-pdf",
-    "image/vnd.cups-ubrl",
-    1,
-    {
-        {cfFilterExternal,
-        &vectortoubrl_filter,
-        "vectortoubrl"
+    },
+    &(brf_spooling_conversion_t){
+        "image/vnd.cups-pdf",
+        "image/vnd.cups-ubrl",
+        1,
+        {
+            {cfFilterExternal, &vectortoubrl_filter, "vectortoubrl"}
         }
-    }
+    },
+    NULL // End of array
 };

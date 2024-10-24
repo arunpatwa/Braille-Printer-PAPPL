@@ -62,16 +62,10 @@ main(int argc,     // I - Number of command-line arguments
   cups_array_t *spooling_conversions;
   spooling_conversions = cupsArrayNew(NULL, NULL);
 
-  // for (int i = 0; converts[i] != NULL; i++) {
-  //     cupsArrayAdd(spooling_conversions, (void *) &converts[i]);
-  // }
-  cupsArrayAdd(spooling_conversions, (void *)&brf_convert_text_to_brf);
-  cupsArrayAdd(spooling_conversions, (void *)&brf_convert_pdf_to_brf);
-  cupsArrayAdd(spooling_conversions, (void *)&brf_convert_html_to_brf);
-  cupsArrayAdd(spooling_conversions, (void *)&brf_convert_jpeg_to_brf);
-  cupsArrayAdd(spooling_conversions, (void *)&brf_convert_png_to_brf);
-  cupsArrayAdd(spooling_conversions, (void *)&brf_convert_doc_to_brf);
-
+  for (int i = 0; converts[i] != NULL; i++) {
+      cupsArrayAdd(spooling_conversions, converts[i]);
+  }
+ 
   brf_printer_app_config_t printer_app_config = {
       .spooling_conversions = spooling_conversions};
 
@@ -275,8 +269,8 @@ void BRFSetup(pappl_system_t *system, brf_printer_app_global_data_t *global_data
        conversion = (brf_spooling_conversion_t *)cupsArrayNext(global_data->config->spooling_conversions))
   {
     // Log the attempt to add the filter
-    printf("Attempting to add MIME filter: %s -> %s\n",
-           conversion->srctype, brf_TESTPAGE_MIMETYPE);
+    // printf("Attempting to add MIME filter: %s -> %s\n",
+    //        conversion->srctype, conversion->dsttype);
 
     // Call the function (void, no return value)
     papplSystemAddMIMEFilter(system, conversion->srctype, conversion->dsttype, BRFTestFilterCB, global_data);
@@ -285,8 +279,8 @@ void BRFSetup(pappl_system_t *system, brf_printer_app_global_data_t *global_data
     filter_added = true;
 
     // Log success after the function call
-    printf("MIME filter added for: %s -> %s\n",
-           conversion->srctype, conversion->dsttype);
+    // printf("MIME filter added for: %s -> %s\n",
+    //        conversion->srctype, conversion->dsttype);
   }
 
   printf("****************BRFSETUP IS CALLED**********************\n");
@@ -644,7 +638,7 @@ BRFTestFilterCB(
         break; // Exit the loop when a match is found
       }
     }
-    printf("****************after if conversion_srctype*********%d***********\n", conversion->srctype);
+    printf("****************after if conversion_srctype*********%s***********\n", conversion->srctype);
 
     if (conversion == NULL)
     {
@@ -769,7 +763,7 @@ int brf_print_filter_function(int inputfd, int outputfd, int inputseekable, cf_f
       return 1;
     }
   }
-
+  
   papplDeviceFlush(device);
 
   if (debug_fd >= 0)
