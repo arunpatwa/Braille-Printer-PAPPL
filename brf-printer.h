@@ -2,12 +2,17 @@
 #include <cupsfilters/filter.h>
 #include <ppd/ppd-filter.h>
 
+pappl_content_t brf_GetFileContentType(pappl_job_t *job);
+
+extern int brf_JobIsCanceled(void *data);
+
+void brf_JobLog(void *data,cf_loglevel_t level,const char *message,...);
+
 typedef struct brf_spooling_conversion_s
 {
     char *srctype;                         // Input data type
     char *dsttype;                         // Output data type
-    int num_filters;                       // Number of filters
-    cf_filter_filter_in_chain_t filters[]; // List of filters with
+    cf_filter_filter_in_chain_t filters ; // List of filters with
                                            // parameters
 } brf_spooling_conversion_t;
 
@@ -82,10 +87,10 @@ typedef struct brf_cups_device_data_s
 
 static cf_filter_external_t texttobrf_filter = {
 
-    .filter = "/usr/lib/cups/filter/brftopagedbrf",
+    .filter = "/usr/lib/cups/filter/texttobrf",
     .envp =  (char *[]) {
             "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
-            "text/plain",  
+            "CONTENT_TYPE=text/plain",  
             NULL
         }
 };
@@ -97,7 +102,7 @@ static cf_filter_external_t brftopagedbrf_filter = {
     .filter = "/usr/lib/cups/filter/brftopagedbrf",
     .envp =   (char *[]) {
             "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
-            "application/vnd.cups-brf",  
+            "CONTENT_TYPE=application/vnd.cups-brf",  
             NULL
         }
 };
@@ -107,7 +112,7 @@ static cf_filter_external_t imagetobrf_filter = {
     .filter = "/usr/lib/cups/filter/imagetobrf",
     .envp =   (char *[]) {
             "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
-            "image/jpeg",  
+            "CONTENT_TYPE=image/jpeg",  
             NULL
         }
 };
@@ -117,7 +122,7 @@ static cf_filter_external_t imagetoubrl_filter = {
     .filter = "/usr/lib/cups/filter/imagetoubrl",
     .envp = (char *[]) {
             "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
-            "image/jpeg",  
+            "CONTENT_TYPE=image/jpeg",  
             NULL
         }
 };
@@ -128,7 +133,7 @@ static cf_filter_external_t vectortobrf_filter = {
     .filter = "/usr/lib/cups/filter/vectortobrf",
     .envp = (char *[]) {
             "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
-            "image/vnd.cups-pdf",  
+            "CONTENT_TYPE=image/vnd.cups-pdf",  
             NULL
         }
 };
@@ -139,124 +144,84 @@ static cf_filter_external_t vectortoubrl_filter = {
     .filter = "/usr/lib/cups/filter/vectortoubrl",
     .envp = (char *[]) {
             "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
-            "image/vnd.cups-pdf",  
+            "CONTENT_TYPE=image/vnd.cups-pdf",  
             NULL
         }
 };
 
-static brf_spooling_conversion_t *converts[] =
+static brf_spooling_conversion_t converts[] =
 {
-    &(brf_spooling_conversion_t){
+    {
         "text/plain",
         "application/vnd.cups-brf",
-        1,
-        {
-            {cfFilterExternal, &texttobrf_filter, "texttobrf"}
-        }
+            {cfFilterExternal, &texttobrf_filter,"texttobrf"}
     },
-    &(brf_spooling_conversion_t){
+    {
         "application/pdf",
         "application/vnd.cups-brf",
-        1,
-        {
             {cfFilterExternal, &texttobrf_filter, "texttobrf"}
-        }
     },
-    &(brf_spooling_conversion_t){
+    {
         "text/html",
         "application/vnd.cups-brf",
-        1,
-        {
-            {cfFilterExternal, &texttobrf_filter, "texttobrf"}
-        }
+            {cfFilterExternal, .parameters=&texttobrf_filter, .name="texttobrf"}
     },
-    &(brf_spooling_conversion_t){
+   {
         "application/vnd.cups-brf",
         "application/vnd.cups-paged-brf",
-        1,
-        {
             {cfFilterExternal, &brftopagedbrf_filter, "brftopagedbrf"}
-        }
     },
-    &(brf_spooling_conversion_t){
+    {
         "application/vnd.cups-ubrl",
         "application/vnd.cups-paged-ubrl",
-        1,
-        {
             {cfFilterExternal, &brftopagedbrf_filter, "brftopagedbrf"}
-        }
     },
-    &(brf_spooling_conversion_t){
+    {
         "application/msword",
         "application/vnd.cups-brf",
-        1,
-        {
             {cfFilterExternal, &texttobrf_filter, "texttobrf"}
-        }
     },
-    &(brf_spooling_conversion_t){
+   {
         "text/rtf",
         "application/vnd.cups-brf",
-        1,
-        {
             {cfFilterExternal, &texttobrf_filter, "texttobrf"}
-        }
     },
-    &(brf_spooling_conversion_t){
+    {
         "application/rtf",
         "application/vnd.cups-brf",
-        1,
-        {
             {cfFilterExternal, &texttobrf_filter, "texttobrf"}
-        }
     },
-    &(brf_spooling_conversion_t){
+    {
         "image/jpeg",
         "image/vnd.cups-brf",
-        1,
-        {
             {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
-        }
     },
-    &(brf_spooling_conversion_t){
+    {
         "image/png",
         "image/vnd.cups-brf",
-        1,
-        {
             {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
-        }
     },
-    &(brf_spooling_conversion_t){
+   {
         "image/jpeg",
         "image/vnd.cups-ubrl",
-        1,
-        {
             {cfFilterExternal, &imagetoubrl_filter, "imagetoubrl"}
-        }
     },
-    &(brf_spooling_conversion_t){
+    {
         "image/png",
         "image/vnd.cups-ubrl",
-        1,
-        {
             {cfFilterExternal, &imagetoubrl_filter, "imagetoubrl"}
-        }
     },
-    &(brf_spooling_conversion_t){
+    {
         "image/vnd.cups-pdf",
         "image/vnd.cups-brf",
-        1,
-        {
             {cfFilterExternal, &vectortobrf_filter, "vectortobrf"}
-        }
     },
-    &(brf_spooling_conversion_t){
+    {
         "image/vnd.cups-pdf",
         "image/vnd.cups-ubrl",
-        1,
-        {
             {cfFilterExternal, &vectortoubrl_filter, "vectortoubrl"}
-        }
     },
-    NULL // End of array
+    {
+    NULL
+    }
 };

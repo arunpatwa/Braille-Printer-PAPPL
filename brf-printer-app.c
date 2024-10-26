@@ -62,8 +62,8 @@ main(int argc,     // I - Number of command-line arguments
   cups_array_t *spooling_conversions;
   spooling_conversions = cupsArrayNew(NULL, NULL);
 
-  for (int i = 0; converts[i] != NULL; i++) {
-      cupsArrayAdd(spooling_conversions, converts[i]);
+  for (int i = 0; converts[i].srctype!=NULL; i++) {
+      cupsArrayAdd(spooling_conversions, &converts[i]);
   }
  
   brf_printer_app_config_t printer_app_config = {
@@ -264,10 +264,13 @@ void BRFSetup(pappl_system_t *system, brf_printer_app_global_data_t *global_data
   // Track if the MIME filter was added successfully
   bool filter_added = false;
 
-  for (conversion = (brf_spooling_conversion_t *)cupsArrayFirst(global_data->config->spooling_conversions);
-       conversion;
-       conversion = (brf_spooling_conversion_t *)cupsArrayNext(global_data->config->spooling_conversions))
-  {
+  // for (conversion = (brf_spooling_conversion_t *)cupsArrayFirst(global_data->config->spooling_conversions);
+  //      conversion;
+  //      conversion = (brf_spooling_conversion_t *)cupsArrayNext(global_data->config->spooling_conversions))
+  // {
+ for (int i = 0; converts[i].srctype!=NULL; i++) {
+      conversion=&converts[i];
+
     // Log the attempt to add the filter
     // printf("Attempting to add MIME filter: %s -> %s\n",
     //        conversion->srctype, conversion->dsttype);
@@ -578,11 +581,11 @@ BRFTestFilterCB(
   filter_data->logdata = job;
   filter_data->logfunc = cfCUPSLogFunc;
 
-  // filter_data->logfunc =brf_JobLog; // Job log function catching page counts
-  //                                 // ("PAGE: XX YY" messages)
-  // filter_data->logdata = job;
-  // filter_data->iscanceledfunc = brf_JobIsCanceled; // Function to indicate
-  //                                               // whether the job got
+  filter_data->logfunc =brf_JobLog; // Job log function catching page counts
+                                  // ("PAGE: XX YY" messages)
+  filter_data->logdata = job;
+  filter_data->iscanceledfunc = brf_JobIsCanceled; // Function to indicate
+                                                // whether the job got
   // canceled
   filter_data->iscanceleddata = job;
 
@@ -616,19 +619,25 @@ BRFTestFilterCB(
 
   papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Input file opened successfully");
 
+  
+  // Set up filter function chain
+    chain = cupsArrayNew(NULL, NULL);
+
   // Get input file format
   informat = papplJobGetFormat(job);
   papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Input file format: %s", informat);
 
   const char *currentFormat = informat;
 
+
   while (strcmp(currentFormat, "application/vnd.cups-brf") != 0)
   {
-
-    for (conversion = (brf_spooling_conversion_t *)cupsArrayFirst(global_data->config->spooling_conversions);
-         conversion;
-         conversion = (brf_spooling_conversion_t *)cupsArrayNext(global_data->config->spooling_conversions))
-    {
+    // for (conversion = (brf_spooling_conversion_t *)cupsArrayFirst(global_data->config->spooling_conversions);
+    //      conversion;
+    //      conversion = (brf_spooling_conversion_t *)cupsArrayNext(global_data->config->spooling_conversions))
+    // {
+     for (int i = 0; converts[i].srctype!=NULL; i++) {
+      conversion=&converts[i];
       // Compare source type with informat
       if (strcmp(conversion->srctype, informat) == 0)
       {
@@ -671,16 +680,11 @@ BRFTestFilterCB(
       papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Connected filter_data to backend");
     }
 
-    // Set up filter function chain
-    chain = cupsArrayNew(NULL, NULL);
-
-    for (int i = 0; i < conversion->num_filters; i++)
-    {
-      cupsArrayAdd(chain, &(conversion->filters[i]));
-    }
+    cupsArrayAdd(chain, &(conversion->filters));
 
     currentFormat = conversion->dsttype;
   }
+
   // Add print filter function at the end of the chain
   print = (cf_filter_filter_in_chain_t *)calloc(1, sizeof(cf_filter_filter_in_chain_t));
   
@@ -756,14 +760,15 @@ int brf_print_filter_function(int inputfd, int outputfd, int inputseekable, cf_f
   {
     // fprintf(stderr,"*****************FIRST**%zd**********\n",bytes);
     if (debug_fd >= 0)
-      write(debug_fd, buffer, bytes);
+      (void) write(debug_fd, buffer, bytes);
+
     if (papplDeviceWrite(device, buffer, (size_t)bytes) < 0)
     {
       // fprintf(stderr,"************SECOND*******%zd**********\n",bytes);
       return 1;
     }
   }
-  
+
   papplDeviceFlush(device);
 
   if (debug_fd >= 0)
