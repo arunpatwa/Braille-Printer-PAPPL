@@ -1,0 +1,8 @@
+# Ignore specific object files
+brf-printer-app.o
+generic-brf.o
+
+# Ignore test files and build folders
+test_files/
+build/
+

@@ -142,3 +142,13 @@ discuss about, how we are gonna add more filters into it...
 
 # for debugging libmagic...
 sudo apt-get install libmagic-dev 
+
+
+
+Things need to be done:
+
+1. ADD Printer Options ( added but need verification)
+2. need add and verify all the filters ... ( currently html and image filter not seemed to be working correctly)
+3. default printer creation -> (added a function but need to be get verified)
+4. remove PPD file (it would be done asap Options get added)
+5. deleting the memory wherever needed

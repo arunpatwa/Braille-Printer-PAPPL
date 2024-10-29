@@ -1162,7 +1162,6 @@
 *CloseUI: *LineSpacing
 *OpenUI *TopMargin/Top margin: PickOne
 *OrderDependency: 10 AnySetup *TopMargin
-*DefaultTopMargin: 2
 *TopMargin 0/0: ""
 *TopMargin 1/1: ""
 *TopMargin 2/2: ""
