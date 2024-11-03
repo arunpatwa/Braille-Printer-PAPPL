@@ -52,8 +52,6 @@ brf_gen(
   driver_data->num_resolution = 1;
   driver_data->x_resolution[0] = 200;
   driver_data->y_resolution[0] = 200;
-  // driver_data->x_resolution[1] = 300;
-  // driver_data->y_resolution[1] = 300;
 
   driver_data->x_default = driver_data->y_default = driver_data->x_resolution[0];
 
@@ -86,6 +84,7 @@ brf_gen(
   driver_data->type[5] = "envelope";
   driver_data->type[6] = "transparency";
   driver_data->type[7] = "photographic";
+
   papplCopyString(driver_data->media_default.source, "tray-1", sizeof(driver_data->media_default.source));
   papplCopyString(driver_data->media_default.type, "labels", sizeof(driver_data->media_default.type));
   driver_data->media_ready[0] = driver_data->media_default;
@@ -193,7 +192,7 @@ brf_gen_rwriteline(
   {
     unsigned i;                   // Looping var
     const unsigned char *lineptr; // Pointer into line
-    unsigned char buffer[300],
+    unsigned char buffer[1000007],
         *bufptr; // Pointer into buffer
 
     for (i = options->header.cupsBytesPerLine, lineptr = line, bufptr = buffer; i > 0; i--)

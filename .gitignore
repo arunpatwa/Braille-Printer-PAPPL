@@ -5,4 +5,5 @@ generic-brf.o
 # Ignore test files and build folders
 test_files/
 build/
+.vscode/
 

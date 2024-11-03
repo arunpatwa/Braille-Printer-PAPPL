@@ -1,5 +1,5 @@
 // Include necessary headers
-
+#define _GNU_SOURCE
 #include <strings.h>
 #include <cupsfilters/log.h>
 #include <cupsfilters/filter.h>
@@ -14,13 +14,14 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include <string.h>
+#include <magic.h>
 #include "brf-printer.h"
 
 // Include necessary headers...
 
-#define brf_TESTPAGE_HEADER "T*E*S*T*P*A*G*E*"
+
+
 #define brf_TESTPAGE_MIMETYPE "application/vnd.cups-brf"
-#define brf_INPUT_TESTPAGE_MIMETYPE "text/plain"
 
 extern bool brf_gen(pappl_system_t *system, const char *driver_name, const char *device_uri, const char *device_id, pappl_pr_driver_data_t *data, ipp_t **attrs, void *cbdata);
 extern char *strdup(const char *);
@@ -40,7 +41,7 @@ static const char *mime_cb(const unsigned char *header, size_t headersize, void 
 static bool printer_cb(const char *device_info, const char *device_uri, const char *device_id, pappl_system_t *system);
 
 static pappl_system_t *system_cb(int num_options, cups_option_t *options, void *data);
-static int create_brf_printer(pappl_system_t* system) ;
+static int create_brf_printer(pappl_system_t *system);
 
 // Local globals...
 
@@ -66,10 +67,11 @@ main(int argc,     // I - Number of command-line arguments
   cups_array_t *spooling_conversions;
   spooling_conversions = cupsArrayNew(NULL, NULL);
 
-  for (int i = 0; converts[i].srctype!=NULL; i++) {
-      cupsArrayAdd(spooling_conversions, &converts[i]);
+  for (int i = 0; converts[i].srctype != NULL; i++)
+  {
+    cupsArrayAdd(spooling_conversions, &converts[i]);
   }
- 
+
   brf_printer_app_config_t printer_app_config = {
       .spooling_conversions = spooling_conversions};
 
@@ -234,89 +236,138 @@ driver_cb(
   data->color_default = PAPPL_COLOR_MODE_MONOCHROME;
   data->raster_types = PAPPL_PWG_RASTER_TYPE_BLACK_8; // to be done just guess
 
-  data->vendor[data->num_vendor++] = "TopMargin";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "TopMargin", 2);
+  if (*attrs == NULL)
+    *attrs = ippNew();
 
-   data->vendor[data->num_vendor++] = "BottomMargin";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "BottomMargin", 2);
-  
-  data->vendor[data->num_vendor++] = "LeftMargin";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "LeftMargin", 2);
-  
-  data->vendor[data->num_vendor++] = "RightMargin";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "RightMargin", 2);
+  // Adding TopMargin,BottomMargin,LeftMargin,RightMargin
 
+  const char *margin_names[] = {"TopMargin", "BottomMargin", "LeftMargin", "RightMargin"};
+int default_value = 3;
+int range_min = 0;
+int range_max = 10;
+char attribute_name[50];  // Buffer to hold the formatted attribute names
 
-  data->vendor[data->num_vendor++] = "DefaultSendFF";
-  ippAddBoolean(*attrs, IPP_TAG_PRINTER, "DefaultSendFF", 0);
+for (int i = 0; i < 4; i++) {
+  // Add margin name to vendor array
+  data->vendor[data->num_vendor++] = margin_names[i];
 
-  data->vendor[data->num_vendor++] = "DefaultSendSUB";
-  ippAddBoolean(*attrs, IPP_TAG_PRINTER, "DefaultSendSUB", 1);
+  // Format and add the default integer attribute
+  sprintf(attribute_name, "%s-default", margin_names[i]);
+  ipp_attribute_t *check_default = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, attribute_name, default_value);
 
-  data->vendor[data->num_vendor++] = "DefaultLibLouis";
-  ippAddString(*attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "DefaultLibLouis", NULL, "Locale");
+  // Format and add the range attribute
+  sprintf(attribute_name, "%s-support", margin_names[i]);
+  ipp_attribute_t *check_range = ippAddRange(*attrs, IPP_TAG_PRINTER, attribute_name, range_min, range_max);
 
-  data->vendor[data->num_vendor++] = "DefaultLibLouis2";
-  ippAddString(*attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "DefaultLibLouis2", NULL, "HyphLocale");
+  // Check if attributes exist and delete if necessary
+  ipp_attribute_t *attr_default = ippFindAttribute(*attrs, attribute_name, IPP_TAG_ZERO);
+  if (attr_default) {
+    ippDeleteAttribute(*attrs, attr_default);
+  }
 
-  data->vendor[data->num_vendor++] = "DefaultLibLouis3";
-  ippAddString(*attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "DefaultLibLouis3", NULL, "None");
+  ipp_attribute_t *attr_range = ippFindAttribute(*attrs, attribute_name, IPP_TAG_ZERO);
+  if (attr_range) {
+    ippDeleteAttribute(*attrs, attr_range);
+  }
 
-  data->vendor[data->num_vendor++] = "DefaultLibLouis4";
-  ippAddString(*attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "DefaultLibLouis4", NULL, "None");
+  // Debug information
+  printf("************* %s attribute values *************\n", margin_names[i]);
+  if (check_default) {
+    printf("%s default added\n", margin_names[i]);
+  } else {
+    printf("%s default not added\n", margin_names[i]);
+  }
 
-  data->vendor[data->num_vendor++] = "DefaultTextDotDistance";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultTextDotDistance", 250);
-
-  data->vendor[data->num_vendor++] = "DefaultTextDots";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultTextDots", 6);
-
-  data->vendor[data->num_vendor++] = "DefaultLineSpacing";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultLineSpacing", 500);
-
-    data->vendor[data->num_vendor++] = "DefaultBraillePageNumber";
-  ippAddString(*attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "DefaultBraillePageNumber", NULL, "BottomMargin");
-
-  data->vendor[data->num_vendor++] = "DefaultPrintPageNumber";
-  ippAddString(*attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "DefaultPrintPageNumber", NULL, "TopMargin");
-
-  data->vendor[data->num_vendor++] = "DefaultPageSeparator";
-  ippAddBoolean(*attrs, IPP_TAG_PRINTER, "DefaultPageSeparator", 1);
-
-  data->vendor[data->num_vendor++] = "DefaultPageSeparatorNumber";
-  ippAddBoolean(*attrs, IPP_TAG_PRINTER, "DefaultPageSeparatorNumber", 1);
-
-  data->vendor[data->num_vendor++] = "DefaultContinuePages";
-  ippAddBoolean(*attrs, IPP_TAG_PRINTER, "DefaultContinuePages", 0);
-
-  data->vendor[data->num_vendor++] = "DefaultGraphicDotDistance";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultGraphicDotDistance", 200);
-
-  data->vendor[data->num_vendor++] = "DefaultRotate";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultRotate", 90);
-
-  data->vendor[data->num_vendor++] = "DefaultEdge";
-  ippAddString(*attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_KEYWORD), "DefaultEdge", NULL, "Canny");
-
-  data->vendor[data->num_vendor++] = "DefaultNegate";
-  ippAddBoolean(*attrs, IPP_TAG_PRINTER, "DefaultNegate", 0);
-
-  data->vendor[data->num_vendor++] = "DefaultEdgeFactor";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultEdgeFactor", 1);
-
-  data->vendor[data->num_vendor++] = "DefaultCannyRadius";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultCannyRadius", 0);
-
-  data->vendor[data->num_vendor++] = "DefaultCannySigma";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultCannySigma", 1);
-
-  data->vendor[data->num_vendor++] = "DefaultCannyLower";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultCannyLower", 10);
-
-  data->vendor[data->num_vendor++] = "DefaultCannyUpper";
-  ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultCannyUpper", 30);
+  if (check_range) {
+    printf("%s range added\n", margin_names[i]);
+  } else {
+    printf("%s range not added\n", margin_names[i]);
+  }
+}
 
 
+  // data->vendor[data->num_vendor++] = "TopMargin";
+  // ipp_attribute_t *check1 = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
+  //                                         "TopMargin-default", 3);
+  // ipp_attribute_t *check2 = ippAddRange(*attrs, IPP_TAG_PRINTER, "TopMargin-support", 0, 10);
+
+  // ipp_attribute_t *attr = ippFindAttribute(*attrs, "TopMargin-default", IPP_TAG_ZERO);
+  // if (attr)
+  // {
+  //   ippDeleteAttribute(*attrs, attr);
+  // }
+
+  // printf("*****************attrs values**********%p*******\n", *attrs);
+
+  // ipp_attribute_t *attr2 = ippFindAttribute(*attrs, "TopMargin-support", IPP_TAG_ZERO);
+  // if (attr2)
+  // {
+  //   ippDeleteAttribute(*attrs, attr2);
+  // }
+
+  // data->vendor[data->num_vendor++] = "BottomMargin";
+  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "BottomMargin-default", 3);
+  // ippAddRange(*attrs, IPP_TAG_PRINTER, "BottomMargin-support", 0, 10);
+
+  // data->vendor[data->num_vendor++] = "LeftMargin";
+  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "LeftMargin-default", 3);
+  // ippAddRange(*attrs, IPP_TAG_PRINTER, "LeftMargin-support", 0, 10);
+
+  // data->vendor[data->num_vendor++] = "RightMargin";
+  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "RightMargin-default", 3);
+  // ippAddRange(*attrs, IPP_TAG_PRINTER, "RightMargin-support", 0, 10);
+
+
+  // if (check1)
+  //   printf("**************IppAddInteger added*****************\n");
+  // else
+  //   printf("******************not added**************************\n");
+
+  // if (check2)
+  //   printf("**************IppAddRange added*****************\n");
+ 
+
+  // data->vendor[data->num_vendor++] = "DefaultBraillePageNumber";
+  // ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_STRING, "BraillePageNumber", NULL, "BottomMargin");
+
+  // data->vendor[data->num_vendor++] = "DefaultPrintPageNumber";
+  // ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_STRING, "PrintPageNumber", NULL, "TopMargin");
+
+  // data->vendor[data->num_vendor++] = "DefaultPageSeparator";
+  // ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_STRING, "PageSeparator", NULL, "True");
+
+  // data->vendor[data->num_vendor++] = "DefaultPageSeparatorNumber";
+  // ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_STRING, "DefaultPageSeparatorNumber", NULL, "True");
+
+  // data->vendor[data->num_vendor++] = "DefaultContinuePages";
+  // ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_STRING, "DefaultContinuePages", NULL, "False");
+
+  // data->vendor[data->num_vendor++] = "DefaultGraphicDotDistance";
+  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultGraphicDotDistance", 200);
+
+  // data->vendor[data->num_vendor++] = "DefaultRotate";
+  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultRotate", 90);
+
+  // data->vendor[data->num_vendor++] = "DefaultEdge";
+  // ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_STRING, "DefaultEdge", NULL, "Canny");
+
+  // data->vendor[data->num_vendor++] = "DefaultNegate";
+  // ippAddString(*attrs, IPP_TAG_PRINTER,IPP_TAG_STRING, "DefaultNegate", NULL, "False");
+
+  // data->vendor[data->num_vendor++] = "DefaultEdgeFactor";
+  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultEdgeFactor", 1);
+
+  // data->vendor[data->num_vendor++] = "DefaultCannyRadius";
+  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultCannyRadius", 0);
+
+  // data->vendor[data->num_vendor++] = "DefaultCannySigma";
+  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultCannySigma", 1);
+
+  // data->vendor[data->num_vendor++] = "DefaultCannyLower";
+  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultCannyLower", 10);
+
+  // data->vendor[data->num_vendor++] = "DefaultCannyUpper";
+  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultCannyUpper", 30);
 
   // "print-quality-default" value...
   data->quality_default = IPP_QUALITY_NORMAL;
@@ -353,29 +404,67 @@ void BRFSetup(pappl_system_t *system, brf_printer_app_global_data_t *global_data
   // Track if the MIME filter was added successfully
   bool filter_added = false;
 
- for (int i = 0; converts[i].srctype!=NULL; i++) {
-      conversion=&converts[i];
+  for (int i = 0; converts[i].srctype != NULL; i++)
+  {
+    conversion = &converts[i];
 
     // Call the function (void, no return value)
-    papplSystemAddMIMEFilter(system, conversion->srctype, conversion->dsttype, BRFTestFilterCB, global_data);
+    // papplSystemAddMIMEFilter(system, conversion->srctype, "application/vnd.cups-brf", BRFTestFilterCB, global_data);
+    papplSystemAddMIMEFilter(system, conversion->srctype,brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, global_data);
 
     // Set filter_added to true after calling the function
     filter_added = true;
-
   }
 
   printf("****************BRFSETUP IS CALLED**********************\n");
 }
 // 'mime_cb()' - MIME typing callback...
 
+// static const char *                  // O - MIME media type or `NULL` if none
+// mime_cb(const unsigned char *header, // I - Header data
+//         size_t headersize,           // I - Size of header data
+//         void *cbdata)                // I - Callback data (not used)
+// {
+
+//   printf("************************mimecbcalled********************\n");
+//   return ("image");
+// }
+
 static const char *                  // O - MIME media type or `NULL` if none
 mime_cb(const unsigned char *header, // I - Header data
         size_t headersize,           // I - Size of header data
         void *cbdata)                // I - Callback data (not used)
 {
+    magic_t magic;
+    const char *mime_type = NULL;
 
-  printf("************************mimecbcalled********************\n");
-  return ("text/plain");
+    // Step 1: Open a magic_t object for MIME type detection
+    magic = magic_open(MAGIC_MIME_TYPE);
+    if (magic == NULL) {
+        fprintf(stderr, "Failed to initialize libmagic.\n");
+        return NULL;
+    }
+
+    // Step 2: Load the magic database
+    if (magic_load(magic, NULL) != 0) {
+        fprintf(stderr, "Failed to load magic database: %s\n", magic_error(magic));
+        magic_close(magic);
+        return NULL;
+    }
+
+    // Step 3: Use magic_buffer to determine MIME type from the header data
+    mime_type = magic_buffer(magic, header, headersize);
+    if (mime_type == NULL) {
+        fprintf(stderr, "Failed to determine MIME type: %s\n", magic_error(magic));
+    } else {
+        // Duplicate the MIME type string, as magic_buffer may free it after magic_close
+        mime_type = strdup(mime_type);
+    }
+
+    // Step 4: Clean up
+    magic_close(magic);
+
+    return mime_type;  // Return the MIME type (or NULL if undetected)
 }
 
 // 'printer_cb()' - Try auto-adding printers.
@@ -561,54 +650,65 @@ system_cb(
 
 // creating uri for cups-brf printer
 
-int create_brf_printer(pappl_system_t *system) {
-    char *dir;
-    struct passwd *pw;
-    int ret;
+int create_brf_printer(pappl_system_t *system)
+{
+  char *dir;
+  struct passwd *pw;
+  int ret;
 
-    //Get the current user's information
-    pw = getpwuid(getuid());
-    if (pw == NULL) {
-        fprintf(stderr, "ERROR: could not get user information\n");
-        return 1;
-    }
+  // Get the current user's information
+  pw = getpwuid(getuid());
+  if (pw == NULL)
+  {
+    fprintf(stderr, "ERROR: could not get user information\n");
+    return 1;
+  }
 
-    //Create the directory path in the user's home directory
-    if (asprintf(&dir, "%s/BRF", pw->pw_dir) < 0) {
-        fprintf(stderr, "ERROR: could not allocate memory\n");
-        return 1;
-    }
+  // Create the directory path in the user's home directory
+  if (asprintf(&dir, "%s/BRF", pw->pw_dir) < 0)
+  {
+    fprintf(stderr, "ERROR: could not allocate memory\n");
+    return 1;
+  }
 
-    //Try creating the "BRF" directory with permissions 0700
-    fprintf(stderr, "DEBUG: creating directory \"%s\"\n", dir);
-    ret = mkdir(dir, 0700);
-    if (ret == -1 && errno != EEXIST) {
-        fprintf(stderr, "ERROR: could not create directory \"%s\": %s\n",
-                dir, strerror(errno));
-        free(dir);
-        return 1;
-    } else if (ret == -1) {
-        fprintf(stderr, "DEBUG: directory \"%s\" already exists\n", dir);
-    } else {
-        fprintf(stderr, "DEBUG: directory \"%s\" created successfully\n", dir);
-    }
-
-    // Construct the device URI
-    char device_uri[1024];
-    snprintf(device_uri, sizeof(device_uri), "file://%s", dir);
-    printf("[INFO] Device URI for printer: %s\n", device_uri);
-
-    // Create the printer with the new device URI
-    
-    if (papplPrinterCreate(system, 0, "cups-brf", "gen_brf", NULL, device_uri) != NULL) {
-        printf("[SUCCESS] Printer created with device URI: %s\n", device_uri);
-    } else {
-        fprintf(stderr, "[ERROR] Failed to create printer with device URI: %s\n", device_uri);
-    }
-
+  // Try creating the "BRF" directory with permissions 0700
+  fprintf(stderr, "DEBUG: creating directory \"%s\"\n", dir);
+  ret = mkdir(dir, 0700);
+  if (ret == -1 && errno != EEXIST)
+  {
+    fprintf(stderr, "ERROR: could not create directory \"%s\": %s\n",
+            dir, strerror(errno));
     free(dir);
+    return 1;
+  }
+  else if (ret == -1)
+  {
+    fprintf(stderr, "DEBUG: directory \"%s\" already exists\n", dir);
+  }
+  else
+  {
+    fprintf(stderr, "DEBUG: directory \"%s\" created successfully\n", dir);
+  }
 
-    return 0;
+  // Construct the device URI
+  char device_uri[1024];
+  snprintf(device_uri, sizeof(device_uri), "file://%s", dir);
+  printf("[INFO] Device URI for printer: %s\n", device_uri);
+
+  // Create the printer with the new device URI
+
+  if (papplPrinterCreate(system, 0, "cups-brf", "gen_brf", NULL, device_uri) != NULL)
+  {
+    printf("[SUCCESS] Printer created with device URI: %s\n", device_uri);
+  }
+  else
+  {
+    fprintf(stderr, "[ERROR] Failed to create printer with device URI: %s\n", device_uri);
+  }
+
+  free(dir);
+
+  return 0;
 }
 
 // 'BRFTestFilterCB()' - Print a test page.
@@ -639,6 +739,8 @@ BRFTestFilterCB(
   cf_filter_data_t *filter_data;
   cups_array_t *chain;
   int nullfd; // File descriptor for /dev/null
+  char paramstr[1024];
+  char buf[1024];
 
   bool ret = false;    // Return value
   int num_options = 0; // Number of PPD print options
@@ -651,6 +753,96 @@ BRFTestFilterCB(
   pappl_pr_driver_data_t driver_data;
   pappl_printer_t *printer = papplJobGetPrinter(job);
   const char *device_uri = papplPrinterGetDeviceURI(printer);
+
+  ipp_t *driver_attrs = papplPrinterGetDriverAttributes(printer);
+
+  paramstr[sizeof(paramstr) - 1] = 0;
+
+  // Define an array of option names
+  const char *option_names[] = {
+      "SendFF", "SendSUB", "LibLouis", "LibLouis2", "LibLouis3", "LibLouis4",
+      "TextDotDistance", "TextDots", "LineSpacing", "TopMargin", "BottomMargin",
+      "LeftMargin", "RightMargin", "BraillePageNumber", "PrintPageNumber",
+      "PageSeparator", "PageSeparatorNumber", "ContinuePages", "GraphicDotDistance",
+      "Rotate", "Edge", "Negate", "EdgeFactor", "CannyRadius", "CannySigma",
+      "CannyLower", "CannyUpper"};
+
+  // Loop through each option and process them
+  for (size_t i = 0; i < sizeof(option_names) / sizeof(option_names[0]); i++)
+  {
+    const char *option_name = option_names[i];
+    ipp_attribute_t *attribute = papplJobGetAttribute(job, option_name);
+
+    // Fallback to driver default if attribute is not found
+    if (attribute == NULL)
+    {
+      snprintf(buf, sizeof(buf), "%s-default", option_name);
+      attribute = ippFindAttribute(driver_attrs, buf, IPP_TAG_ZERO);
+    }
+
+    if (attribute != NULL)
+    {
+      ipp_tag_t tagcheck = ippGetValueTag(attribute);
+
+      if (tagcheck == IPP_TAG_INTEGER)
+      {
+        int value = ippGetInteger(attribute, 0);
+        snprintf(paramstr, sizeof(paramstr) - 1, "%d", value);
+      }
+      else if (tagcheck == IPP_TAG_BOOLEAN)
+      {
+        bool boolean = ippGetBoolean(attribute, 0);
+        strcpy(paramstr, boolean ? "True" : "False");
+      }
+      else
+      {
+        const char *str = ippGetString(attribute, 0, NULL);
+        strncpy(paramstr, str, sizeof(paramstr) - 1);
+      }
+
+      // Add the option to job_options
+      job_options->num_vendor = cupsAddOption(option_name, paramstr, job_options->num_vendor, &(job_options->vendor));
+    }
+
+    printf("****** Value for %s ****** %s\n", option_name, paramstr);
+  }
+
+  // paramstr[sizeof(paramstr)-1] = 0;
+
+  // ipp_attribute_t *TopMargin = papplJobGetAttribute(job, "TopMargin");
+
+  // if (TopMargin == NULL)
+  // {
+  //   snprintf(buf, sizeof(buf), "%s-default", "TopMargin");
+  //   TopMargin = ippFindAttribute(driver_attrs, buf, IPP_TAG_ZERO);
+  // }
+
+  // ipp_tag_t tagcheck = ippGetValueTag(TopMargin);
+
+  // printf("****************tagCheck*********%d*************\n", tagcheck);
+
+  // if (tagcheck == IPP_TAG_INTEGER)
+  // {
+  //   int value = ippGetInteger(TopMargin, 0);
+  //   snprintf(paramstr, sizeof(paramstr) - 1, "%d", value);
+  // }
+
+  // else if (tagcheck==IPP_TAG_BOOLEAN){
+  //     const bool boolean = ippGetBoolean(TopMargin, 0);
+  //     if(boolean){
+  //       strcpy(paramstr, "True");
+  //     }
+  //     else strcpy(paramstr,"False");
+  // }
+  // else
+  // {
+  //   const char *str = ippGetString(TopMargin, 0, NULL);
+  //   strncpy(paramstr, str,sizeof(paramstr)-1);
+  // }
+
+  // printf("**********************value for topMargin******%p*******\n", TopMargin);
+
+  // job_options->num_vendor = cupsAddOption("TopMargin", paramstr, job_options->num_vendor, &(job_options->vendor));
 
   // job_options->print_content_optimize=brf_GetFileContentType(job);
 
@@ -701,15 +893,14 @@ BRFTestFilterCB(
   filter_data->side_pipe[0] = -1;
   filter_data->side_pipe[1] = -1;
   filter_data->logdata = job;
-  
+
   filter_data->logfunc = cfCUPSLogFunc;
 
-
-  filter_data->logfunc =brf_JobLog; // Job log function catching page counts
-                                  // ("PAGE: XX YY" messages)
+  filter_data->logfunc = brf_JobLog; // Job log function catching page counts
+                                     // ("PAGE: XX YY" messages)
   filter_data->logdata = job;
   filter_data->iscanceledfunc = brf_JobIsCanceled; // Function to indicate
-                                                // whether the job got
+                                                   // whether the job got
   // canceled
   filter_data->iscanceleddata = job;
 
@@ -743,26 +934,25 @@ BRFTestFilterCB(
 
   papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Input file opened successfully");
 
-
- // Connect the job's filter_data to the backend
-    if (strncmp(device_uri, "cups:", 5) == 0)
+  // Connect the job's filter_data to the backend
+  if (strncmp(device_uri, "cups:", 5) == 0)
+  {
+    // Get the device data
+    device_data = (brf_cups_device_data_t *)papplDeviceGetData(device);
+    if (device_data == NULL)
     {
-      // Get the device data
-      device_data = (brf_cups_device_data_t *)papplDeviceGetData(device);
-      if (device_data == NULL)
-      {
-        papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to get device data");
-        close(fd);
-        return false;
-      }
-
-      // Connect the filter_data
-      device_data->filter_data = filter_data;
-      papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Connected filter_data to backend");
+      papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to get device data");
+      close(fd);
+      return false;
     }
-  
+
+    // Connect the filter_data
+    device_data->filter_data = filter_data;
+    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Connected filter_data to backend");
+  }
+
   // Set up filter function chain
-    chain = cupsArrayNew(NULL, NULL);
+  chain = cupsArrayNew(NULL, NULL);
 
   // Get input file format
   informat = papplJobGetFormat(job);
@@ -775,12 +965,9 @@ BRFTestFilterCB(
 
   while (strcmp(currentFormat, "application/vnd.cups-brf") != 0)
   {
-    // for (conversion = (brf_spooling_conversion_t *)cupsArrayFirst(global_data->config->spooling_conversions);
-    //      conversion;
-    //      conversion = (brf_spooling_conversion_t *)cupsArrayNext(global_data->config->spooling_conversions))
-    // {
-     for (int i = 0; converts[i].srctype!=NULL; i++) {
-      conversion=&converts[i];
+    for (int i = 0; converts[i].srctype != NULL; i++)
+    {
+      conversion = &converts[i];
       // Compare source type with informat
       if (strcmp(conversion->srctype, informat) == 0)
       {
@@ -802,7 +989,6 @@ BRFTestFilterCB(
 
     papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Converting input file to format: %s", conversion->dsttype);
 
-
     cupsArrayAdd(chain, &(conversion->filters));
 
     currentFormat = conversion->dsttype;
@@ -810,7 +996,7 @@ BRFTestFilterCB(
 
   // Add print filter function at the end of the chain
   print = (cf_filter_filter_in_chain_t *)calloc(1, sizeof(cf_filter_filter_in_chain_t));
-  
+
   if (!print)
   {
     papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Failed to allocate memory for print filter");
@@ -883,7 +1069,14 @@ int brf_print_filter_function(int inputfd, int outputfd, int inputseekable, cf_f
   {
     // fprintf(stderr,"*****************FIRST**%zd**********\n",bytes);
     if (debug_fd >= 0)
-      (void) write(debug_fd, buffer, bytes);
+    {
+      int storeBuffer = write(debug_fd, buffer, bytes);
+
+      if (storeBuffer != bytes)
+      {
+        fprintf(stderr, "*********** storeBuffer is not bytes**********%zd******\n", bytes);
+      }
+    }
 
     if (papplDeviceWrite(device, buffer, (size_t)bytes) < 0)
     {
