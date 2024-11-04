@@ -394,10 +394,6 @@ driver_cb(
 
   data->scaling_default = PAPPL_SCALING_AUTO;
 
-  // Test page callback
-
-  // data->testpage_cb = lprintTestPageCB;
-
   // Use the corresponding sub-driver callback to set things up...
   if (!strncmp(driver_name, "gen_", 4))
     return (brf_gen(system, driver_name, device_uri, device_id, data, attrs, cbdata));
@@ -421,7 +417,7 @@ void BRFSetup(pappl_system_t *system, brf_printer_app_global_data_t *global_data
     conversion = &converts[i];
 
    
-    // papplSystemAddMIMEFilter(system, conversion->srctype, "application/vnd.cups-brf", BRFTestFilterCB, global_data);
+    // papplSystemAddMIMEFilter(system, conversion->srctype, conversion->dsttype, BRFTestFilterCB, global_data);
     papplSystemAddMIMEFilter(system, conversion->srctype, brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, global_data);
 
     // Set filter_added to true after calling the function
@@ -431,16 +427,6 @@ void BRFSetup(pappl_system_t *system, brf_printer_app_global_data_t *global_data
   printf("****************BRFSETUP IS CALLED**********************\n");
 }
 // 'mime_cb()' - MIME typing callback...
-
-// static const char *                  // O - MIME media type or `NULL` if none
-// mime_cb(const unsigned char *header, // I - Header data
-//         size_t headersize,           // I - Size of header data
-//         void *cbdata)                // I - Callback data (not used)
-// {
-
-//   printf("************************mimecbcalled********************\n");
-//   return ("image");
-// }
 
 static const char *                  // O - MIME media type or `NULL` if none
 mime_cb(const unsigned char *header, // I - Header data
@@ -650,10 +636,6 @@ system_cb(
 
   fprintf(stderr, "brf: statefile='%s'\n", brf_statefile);
 
-  // if (!papplSystemLoadState(system, brf_statefile))
-  // {
-  // No old state, use defaults and auto-add printers...
-
   papplSystemSetDNSSDName(system, system_name ? system_name : "brf");
 
   papplLog(system, PAPPL_LOGLEVEL_INFO, "Auto-adding printers...");
@@ -733,29 +715,6 @@ int create_brf_printer(pappl_system_t *system)
 // Items to configure the properties of this Printer Application
 // These items do not change while the Printer Application is running
 
-const char *get_tag_name(ipp_tag_t tag) {
-    switch (tag) {
-        case IPP_TAG_ZERO: return "IPP_TAG_ZERO";
-        case IPP_TAG_INTEGER: return "IPP_TAG_INTEGER";
-        case IPP_TAG_BOOLEAN: return "IPP_TAG_BOOLEAN";
-        case IPP_TAG_ENUM: return "IPP_TAG_ENUM";
-        case IPP_TAG_STRING: return "IPP_TAG_STRING";
-        case IPP_TAG_TEXT: return "IPP_TAG_TEXT";
-        case IPP_TAG_NAME: return "IPP_TAG_NAME";
-        case IPP_TAG_KEYWORD: return "IPP_TAG_KEYWORD";
-        case IPP_TAG_URI: return "IPP_TAG_URI";
-        case IPP_TAG_DATE: return "IPP_TAG_DATE";
-        case IPP_TAG_RESOLUTION: return "IPP_TAG_RESOLUTION";
-        case IPP_TAG_RANGE: return "IPP_TAG_RANGE";
-        case IPP_TAG_BEGIN_COLLECTION: return "IPP_TAG_BEGIN_COLLECTION";
-        case IPP_TAG_TEXTLANG: return "IPP_TAG_TEXTLANG";
-        case IPP_TAG_NAMELANG: return "IPP_TAG_NAMELANG";
-        case IPP_TAG_MEMBERNAME: return "IPP_TAG_MEMBERNAME";
-        // Add more cases as needed
-        default: return "UNKNOWN_TAG";
-    }
-}
-
 bool // O - `true` on success, `false` on failure
 BRFTestFilterCB(
     pappl_job_t *job,       // I - Job
@@ -807,92 +766,54 @@ BRFTestFilterCB(
                                 "Rotate", "Edge", "Negate", "EdgeFactor", "CannyRadius", "CannySigma",
                                 "CannyLower", "CannyUpper", "page-left", "page-right", "page-top", "page-bottom"};
 
-  // // Loop through each option and process them
-  // for (size_t i = 0; i < sizeof(option_names) / sizeof(option_names[0]); i++)
-  // {
-  //   const char *option_name = option_names[i];
-  //   ipp_attribute_t *attribute = papplJobGetAttribute(job, option_name);
-
-  //  // If attribute is not found, look for the default attribute
-  //   if (attribute == NULL) {
-  //       snprintf(buf, sizeof(buf), "%s-default", option_name);
-  //       attribute = ippFindAttribute(driver_attrs, buf, IPP_TAG_ZERO);
-  //       if (attribute != NULL) {
-  //           printf("Default attribute for %s: %s\n", option_name, ippGetName(attribute));
-  //       }
-  //   }
-
-  //   // Try to retrieve supported attribute as well
-  //   snprintf(buf, sizeof(buf), "%s-supported", option_name);
-  //   ipp_attribute_t *attr_support = ippFindAttribute(driver_attrs, buf, IPP_TAG_ZERO);
-  //   if (attr_support != NULL) {
-  //       printf("Supported attribute for %s: %s\n", option_name, ippGetName(attr_support));
-  //   }
-
-  //   if (attribute != NULL)
-  //   {
-  //     ipp_tag_t tagcheck = ippGetValueTag(attribute);
-
-  //     if (tagcheck == IPP_TAG_INTEGER)
-  //     {
-  //       int value = ippGetInteger(attribute, 0);
-  //       snprintf(paramstr, sizeof(paramstr) - 1, "%d", value);
-  //     }
-  //     else if (tagcheck == IPP_TAG_BOOLEAN)
-  //     {
-  //       bool boolean = ippGetBoolean(attribute, 0);
-  //       strcpy(paramstr, boolean ? "True" : "False");
-  //     }
-  //     else
-  //     {
-  //       const char *str = ippGetString(attribute, 0, NULL);
-  //       strncpy(paramstr, str, sizeof(paramstr) - 1);
-  //     }
-
-  //     // Add the option to job_options
-  //     job_options->num_vendor = cupsAddOption(option_name, paramstr, job_options->num_vendor, &(job_options->vendor));
-  //   }
-
-  //   printf("****** Value for %s ****** %s\n", option_name, paramstr);
-  // }
-
-
-
-// Loop through each option and process them
-for (size_t i = 0; i < sizeof(option_names) / sizeof(option_names[0]); i++) {
+  // Loop through each option and process them
+  for (size_t i = 0; i < sizeof(option_names) / sizeof(option_names[0]); i++)
+  {
     const char *option_name = option_names[i];
     ipp_attribute_t *attribute = papplJobGetAttribute(job, option_name);
 
-    // Fallback to driver default if attribute is not found
+   // If attribute is not found, look for the default attribute
     if (attribute == NULL) {
         snprintf(buf, sizeof(buf), "%s-default", option_name);
         attribute = ippFindAttribute(driver_attrs, buf, IPP_TAG_ZERO);
-    }
-
-    if (attribute != NULL) {
-        ipp_tag_t tagcheck = ippGetValueTag(attribute);
-        printf("****** Tag Name for %s: %s ******\n", option_name, get_tag_name(tagcheck));
-
-        if (tagcheck == IPP_TAG_INTEGER) {
-            int value = ippGetInteger(attribute, 0);
-            snprintf(paramstr, sizeof(paramstr) - 1, "%d", value);
-        } 
-        else if (tagcheck == IPP_TAG_BOOLEAN) {
-            bool boolean = ippGetBoolean(attribute, 0);
-            strcpy(paramstr, boolean ? "True" : "False");
-        } 
-        else {
-            const char *str = ippGetString(attribute, 0, NULL);
-            strncpy(paramstr, str, sizeof(paramstr) - 1);
+        if (attribute != NULL) {
+            printf("Default attribute for %s: %s\n", option_name, ippGetName(attribute));
         }
-
-        // Add the option to job_options
-        job_options->num_vendor = cupsAddOption(option_name, paramstr, job_options->num_vendor, &(job_options->vendor));
     }
 
-    printf("****** Value for %s: %s ******\n", option_name, paramstr);
-}
-  // job_options->print_content_optimize=brf_GetFileContentType(job);
+    // Try to retrieve supported attribute as well
+    snprintf(buf, sizeof(buf), "%s-supported", option_name);
+    ipp_attribute_t *attr_support = ippFindAttribute(driver_attrs, buf, IPP_TAG_ZERO);
+    if (attr_support != NULL) {
+        printf("Supported attribute for %s: %s\n", option_name, ippGetName(attr_support));
+    }
+
+    if (attribute != NULL)
+    {
+      ipp_tag_t tagcheck = ippGetValueTag(attribute);
+
+      if (tagcheck == IPP_TAG_INTEGER)
+      {
+        int value = ippGetInteger(attribute, 0);
+        snprintf(paramstr, sizeof(paramstr) - 1, "%d", value);
+      }
+      else if (tagcheck == IPP_TAG_BOOLEAN)
+      {
+        bool boolean = ippGetBoolean(attribute, 0);
+        strcpy(paramstr, boolean ? "True" : "False");
+      }
+      else
+      {
+        const char *str = ippGetString(attribute, 0, NULL);
+        strncpy(paramstr, str, sizeof(paramstr) - 1);
+      }
+
+      // Add the option to job_options
+      job_options->num_vendor = cupsAddOption(option_name, paramstr, job_options->num_vendor, &(job_options->vendor));
+    }
+
+    printf("****** Value for %s ****** %s\n", option_name, paramstr);
+  }
 
   papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Entering BRFTestFilterCB()");
 
@@ -1115,7 +1036,6 @@ int brf_print_filter_function(int inputfd, int outputfd, int inputseekable, cf_f
 
   while ((bytes = read(inputfd, buffer, sizeof(buffer))) > 0)
   {
-    // fprintf(stderr,"*****************FIRST**%zd**********\n",bytes);
     if (debug_fd >= 0)
     {
       int storeBuffer = write(debug_fd, buffer, bytes);
@@ -1128,7 +1048,6 @@ int brf_print_filter_function(int inputfd, int outputfd, int inputseekable, cf_f
 
     if (papplDeviceWrite(device, buffer, (size_t)bytes) < 0)
     {
-      // fprintf(stderr,"************SECOND*******%zd**********\n",bytes);
       return 1;
     }
   }
@@ -1140,216 +1059,6 @@ int brf_print_filter_function(int inputfd, int outputfd, int inputseekable, cf_f
   return 0;
 }
 
-pappl_content_t
-brf_GetFileContentType(pappl_job_t *job)
-{
-  int i, j, k;
-  const char *informat,
-      *filename,
-      *found;
-  char command[512],
-      line[256];
-  char *p, *q;
-  int creatorline_found = 0;
-  pappl_content_t content_type;
-
-  // In the fields "Creator", "Creator Tool", and/or "Producer" of the
-  // metadata of a PDF file one usually find the name of the
-  // application which created the file. We use thse names to find out
-  // the type of content to expect in the file.
-  const char *automatic[] =
-      {// PAPPL_CONTENT_AUTO
-       NULL};
-  const char *graphics[] =
-      {          // PAPPL_CONTENT_GRAPHIC
-       "Draw",   // LibreOffice
-       "Charts", // LibreOffice
-       "Karbon", // KDE Calligra
-       "Flow",   // KDE Calligra
-       "Inkscape",
-       NULL};
-  const char *photo[] =
-      {              // PAPPL_CONTENT_PHOTO
-       "imagetopdf", // CUPS
-       "RawTherapee",
-       "Darktable",
-       "digiKam",
-       "Geeqie",
-       "GIMP",
-       "eog",  // GNOME
-       "Skia", // Google Photos on Android 11 (tested with Pixel 5)
-       "ImageMagick",
-       "GraphicsMagick",
-       "Krita",      // KDE
-       "Photoshop",  // Adobe
-       "Lightroom",  // Adobe
-       "Camera Raw", // Adobe
-       "SilkyPix",
-       "Capture One",
-       "Photolab",
-       "DxO",
-       NULL};
-  const char *text[] =
-      {             // PAPPL_CONTENT_TEXT
-       "texttopdf", // CUPS
-       "GEdit",     // GNOME
-       "Writer",    // LibreOffice
-       "Word",      // Microsoft Office
-       "Words",     // KDE Calligra
-       "Kexi",      // KDE Calligra
-       "Plan",      // KDE Calligra
-       "Braindump", // KDE Calligra
-       "Author",    // KDE Calligra
-       "Base",      // LibreOffice
-       "Math",      // LibreOffice
-       "Pages",     // Mac Office
-       "Thunderbird",
-       "Bluefish", // IDEs
-       "Geany",    // ...
-       "KATE",
-       "Eclipse",
-       "Brackets",
-       "Atom",
-       "Sublime",
-       "Visual Studio",
-       "GNOME Builder",
-       "Spacemacs",
-       "Atom",
-       "CodeLite", // ...
-       "KDevelop", // IDEs
-       "LaTeX",
-       "TeX",
-       NULL};
-  const char *text_graphics[] =
-      {          // PAPPL_CONTENT_TEXT_AND_GRAPHIC
-       "evince", // GNOME
-       "Okular", // KDE
-       "Chrome",
-       "Chromium",
-       "Firefox",
-       "Impress",  // LibreOffice
-       "Calc",     // LibreOffice
-       "Calligra", // KDE
-       "QuarkXPress",
-       "InDesign", // Adobe
-       "WPS Presentation",
-       "Keynote",    // Mac Office
-       "Numbers",    // Mac Office
-       "Google",     // Google Docs
-       "PowerPoint", // Microsoft Office
-       "Excel",      // Microsoft Office
-       "Sheets",     // KDE Calligra
-       "Stage",      // KDE Calligra
-       NULL};
-
-  const char **creating_apps[] =
-      {
-          automatic,
-          graphics,
-          photo,
-          text,
-          text_graphics,
-          NULL};
-
-  const char *const fields[] =
-      {
-          "Producer",
-          "Creator",
-          "Creator Tool",
-          NULL};
-
-  found = NULL;
-  content_type = PAPPL_CONTENT_AUTO;
-  informat = papplJobGetFormat(job);
-  if (!strcmp(informat, "image/jpeg")) // Photos
-    content_type = PAPPL_CONTENT_PHOTO;
-  else if (!strcmp(informat, "image/png")) // Screen shots
-    content_type = PAPPL_CONTENT_GRAPHIC;
-  else if (!strcmp(informat, "application/pdf")) // PDF, creating app in
-                                                 // metadata
-  {
-    filename = papplJobGetFilename(job);
-    // Run one of the command "pdfinfo" or "exiftool" with the input file,
-    // use the first which gets found
-    snprintf(command, sizeof(command),
-             "pdfinfo %s 2>/dev/null || exiftool %s 2>/dev/null",
-             filename, filename);
-    FILE *pd = popen(command, "r");
-    if (!pd)
-    {
-      papplLogJob(job, PAPPL_LOGLEVEL_WARN,
-                  "Unable to get PDF metadata from %s with both pdfinfo and exiftool",
-                  filename);
-    }
-    else
-    {
-      while (fgets(line, sizeof(line), pd))
-      {
-        p = line;
-        while (isspace(*p))
-          p++;
-        for (i = 0; fields[i]; i++)
-          if (strncasecmp(p, fields[i], strlen(fields[i])) == 0 &&
-              (isspace(*(p + strlen(fields[i]))) ||
-               *(p + strlen(fields[i])) == ':'))
-            break;
-        if (fields[i])
-        {
-          p += strlen(fields[i]);
-          while (isspace(*p))
-            p++;
-          if (*p == ':')
-          {
-            p++;
-            while (isspace(*p))
-              p++;
-            while ((q = p + strlen(p) - 1) && (*q == '\n' || *q == '\r'))
-              *q = '\0';
-            papplLogJob(job, PAPPL_LOGLEVEL_DEBUG,
-                        "PDF metadata line: %s: %s", fields[i], p);
-            creatorline_found = 1;
-            for (j = 0; j < 5; j++)
-            {
-              for (k = 0; creating_apps[j][k]; k++)
-              {
-                while ((q = strcasestr(p, creating_apps[j][k])))
-                  if (!isalnum(*(q - 1)) &&
-                      !isalnum(*(q + strlen(creating_apps[j][k]))))
-                  {
-                    found = creating_apps[j][k];
-                    content_type = 1 << j;
-                    papplLogJob(job, PAPPL_LOGLEVEL_DEBUG,
-                                "  Found: %s", creating_apps[j][k]);
-                    break;
-                  }
-                  else
-                    p = q;
-                if (found)
-                  break;
-              }
-              if (found)
-                break;
-            }
-          }
-        }
-        if (found)
-          break;
-      }
-      pclose(pd);
-    }
-    if (creatorline_found == 0)
-      papplLogJob(job, PAPPL_LOGLEVEL_DEBUG,
-                  "No suitable PDF metadata line found");
-  }
-
-  papplLogJob(job, PAPPL_LOGLEVEL_DEBUG,
-              "Input file format: %s%s%s%s -> Content optimization: %s",
-              informat,
-              found ? " (" : "", found ? found : "", found ? ")" : "",
-              (content_type == PAPPL_CONTENT_AUTO ? "No optimization" : (content_type == PAPPL_CONTENT_PHOTO ? "Photo" : (content_type == PAPPL_CONTENT_GRAPHIC ? "Graphics" : (content_type == PAPPL_CONTENT_TEXT ? "Text" : "Text and graphics")))));
-
-  return (content_type);
-}
 
 //
 // 'brf_JobIsCanceled()' - Return 1 if the job is canceled, which is
