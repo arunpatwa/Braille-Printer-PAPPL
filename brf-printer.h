@@ -89,8 +89,7 @@ static cf_filter_external_t texttobrf_filter = {
 
     .filter = "/usr/lib/cups/filter/texttobrf",
     .envp =  (char *[]) {
-            "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
-            // "PPD=/dev/null",
+            "PPD=/dev/null",
             "CONTENT_TYPE=text/plain",  
             NULL
         }
@@ -102,7 +101,7 @@ static cf_filter_external_t brftopagedbrf_filter = {
 
     .filter = "/usr/lib/cups/filter/brftopagedbrf",
     .envp =   (char *[]) {
-            "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd",  
+            "PPD=/dev/null", 
             "CONTENT_TYPE=application/vnd.cups-brf",  
             NULL
         }
@@ -112,7 +111,7 @@ static cf_filter_external_t imagetobrf_filter = {
 
     .filter = "/usr/lib/cups/filter/imagetobrf",
     .envp =   (char *[]) {
-            "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
+            "PPD=/dev/null",
             "CONTENT_TYPE=image/jpeg",  
             NULL
         }
@@ -122,7 +121,7 @@ static cf_filter_external_t imagetoubrl_filter = {
 
     .filter = "/usr/lib/cups/filter/imagetoubrl",
     .envp = (char *[]) {
-            "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
+            "PPD=/dev/null", 
             "CONTENT_TYPE=image/jpeg",  
             NULL
         }
@@ -133,7 +132,7 @@ static cf_filter_external_t svgtopdf_filter = {
 
     .filter = "/usr/lib/cups/filter/svgtopdf",
     .envp = (char *[]) {
-            "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
+            "PPD=/dev/null",
             "CONTENT_TYPE=image/svg",  
             NULL
         }
@@ -143,7 +142,7 @@ static cf_filter_external_t xfigtopdf_filter = {
 
     .filter = "/usr/lib/cups/filter/xfigtopdf",
     .envp = (char *[]) {
-            "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
+            "PPD=/dev/null", 
             "CONTENT_TYPE=application/x-xfig",  
             NULL
         }
@@ -153,7 +152,7 @@ static cf_filter_external_t wmftopdf_filter = {
 
     .filter = "/usr/lib/cups/filter/wmftopdf",
     .envp = (char *[]) {
-            "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
+            "PPD=/dev/null",
             "CONTENT_TYPE=image/x-wmf",  
             NULL
         }
@@ -163,7 +162,7 @@ static cf_filter_external_t emftopdf_filter = {
 
     .filter = "/usr/lib/cups/filter/emftopdf",
     .envp = (char *[]) {
-            "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
+            "PPD=/dev/null",
             "CONTENT_TYPE=image/emf",  
             NULL
         }
@@ -173,7 +172,7 @@ static cf_filter_external_t cgmtopdf_filter = {
 
     .filter = "/usr/lib/cups/filter/cgmtopdf",
     .envp = (char *[]) {
-            "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
+            "PPD=/dev/null",
             "CONTENT_TYPE=image/cgm",  
             NULL
         }
@@ -184,7 +183,7 @@ static cf_filter_external_t cmxtopdf_filter = {
 
     .filter = "/usr/lib/cups/filter/cmxtopdf",
     .envp = (char *[]) {
-            "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
+            "PPD=/dev/null", 
             "CONTENT_TYPE=image/x-cmx",  
             NULL
         }
@@ -195,7 +194,7 @@ static cf_filter_external_t vectortobrf_filter = {
 
     .filter = "/usr/lib/cups/filter/vectortobrf",
     .envp = (char *[]) {
-            "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
+            "PPD=/dev/null", 
             "CONTENT_TYPE=image/vnd.cups-pdf",  
             NULL
         }
@@ -206,7 +205,7 @@ static cf_filter_external_t vectortoubrl_filter = {
 
     .filter = "/usr/lib/cups/filter/vectortoubrl",
     .envp = (char *[]) {
-            "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd", 
+           "PPD=/dev/null", 
             "CONTENT_TYPE=image/vnd.cups-pdf",  
             NULL
         }
@@ -288,7 +287,7 @@ static brf_spooling_conversion_t converts[] =
     },
     {
         "image/pcx",
-        "image/vnd.cups-brf",
+        "application/vnd.cups-brf",
             {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
     },
     {
@@ -303,47 +302,47 @@ static brf_spooling_conversion_t converts[] =
     },
     {
         "image/vnd.microsoft.icon",
-        "image/vnd.cups-brf",
+        "application/vnd.cups-brff",
             {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
     },
     {
         "image/x-ms-bmp",
-        "image/vnd.cups-brf",
+        "application/vnd.cups-brf",
             {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
     },
 {
         "image/x-portable-anymap",
-        "image/vnd.cups-brf",
+        "application/vnd.cups-brf",
             {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
     },
     {
         "image/x-portable-bitmap",
-        "image/vnd.cups-brf",
+        "application/vnd.cups-brf",
             {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
     },
     {
         "image/x-portable-graymap",
-        "image/vnd.cups-brf",
+        "application/vnd.cups-brf",
             {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
     },
     {
         "image/x-portable-pixmap",
-        "image/vnd.cups-brf",
+        "application/vnd.cups-brf",
             {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
     },
     {
         "image/x-xbitmap",
-        "image/vnd.cups-brf",
+        "application/vnd.cups-brf",
             {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
     },
     {
         "image/x-xpixmap",
-        "image/vnd.cups-brf",
+        "application/vnd.cups-brf",
             {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
     },
     {
         "image/x-xwindowdump",
-        "image/vnd.cups-brf",
+        "application/vnd.cups-brf",
             {cfFilterExternal, &imagetobrf_filter, "imagetobrf"}
     },
 
@@ -421,69 +420,67 @@ static brf_spooling_conversion_t converts[] =
     },
 
 
-    // {
-    //     "image/svg",
-    //     "image/vnd.cups-pdf",
-    //         {cfFilterExternal, &svgtopdf_filter, "svgtopdf"}
-    // },
+    {
+        "image/svg",
+        "image/vnd.cups-pdf",
+            {cfFilterExternal, &svgtopdf_filter, "svgtopdf"}
+    },
 
-    // {
-    //     "image/svg+xml",
-    //     "image/vnd.cups-pdf",
-    //         {cfFilterExternal, &svgtopdf_filter, "svgtopdf"}
-    // },
+    {
+        "image/svg+xml",
+        "image/vnd.cups-pdf",
+            {cfFilterExternal, &svgtopdf_filter, "svgtopdf"}
+    },
 
-    // {
-    //     "application/x-xfig",
-    //     "image/vnd.cups-pdf",
-    //         {cfFilterExternal, &xfigtopdf_filter, "xfigtopdf"}
-    // },
+    {
+        "application/x-xfig",
+        "image/vnd.cups-pdf",
+            {cfFilterExternal, &xfigtopdf_filter, "xfigtopdf"}
+    },
 
-    // {
-    //     "image/wmf",
-    //     "image/vnd.cups-pdf",
-    //         {cfFilterExternal, &wmftopdf_filter, "wmftopdf"}
-    // },
+    {
+        "image/wmf",
+        "image/vnd.cups-pdf",
+            {cfFilterExternal, &wmftopdf_filter, "wmftopdf"}
+    },
 
-    // {
-    //     "image/x-wmf",
-    //     "image/vnd.cups-pdf",
-    //         {cfFilterExternal, &wmftopdf_filter, "wmftopdf"}
-    // },
+    {
+        "image/x-wmf",
+        "image/vnd.cups-pdf",
+            {cfFilterExternal, &wmftopdf_filter, "wmftopdf"}
+    },
 
-    // {
-    //     "windows/metafile",
-    //     "image/vnd.cups-pdf",
-    //         {cfFilterExternal, &wmftopdf_filter, "wmftopdf"}
-    // },
-    // {
-    //     "application/x-msmetafile",
-    //     "image/vnd.cups-pdf",
-    //         {cfFilterExternal, &wmftopdf_filter, "wmftopdf"}
-    // },
-    // {
-    //     "image/emf",
-    //     "image/vnd.cups-pdf",
-    //         {cfFilterExternal, &emftopdf_filter, "emftopdf"}
-    // },
-    // {
-    //     "image/x-emf",
-    //     "image/vnd.cups-pdf",
-    //         {cfFilterExternal, &emftopdf_filter, "emftopdf"}
-    // },
-    // {
-    //     "image/cgm",
-    //     "image/vnd.cups-pdf",
-    //         {cfFilterExternal, &cgmtopdf_filter, "cgmtopdf"}
-    // },
+    {
+        "windows/metafile",
+        "image/vnd.cups-pdf",
+            {cfFilterExternal, &wmftopdf_filter, "wmftopdf"}
+    },
+    {
+        "application/x-msmetafile",
+        "image/vnd.cups-pdf",
+            {cfFilterExternal, &wmftopdf_filter, "wmftopdf"}
+    },
+    {
+        "image/emf",
+        "image/vnd.cups-pdf",
+            {cfFilterExternal, &emftopdf_filter, "emftopdf"}
+    },
+    {
+        "image/x-emf",
+        "image/vnd.cups-pdf",
+            {cfFilterExternal, &emftopdf_filter, "emftopdf"}
+    },
+    {
+        "image/cgm",
+        "image/vnd.cups-pdf",
+            {cfFilterExternal, &cgmtopdf_filter, "cgmtopdf"}
+    },
 
-    // {
-    //     "image/x-cmx",
-    //     "image/vnd.cups-pdf",
-    //         {cfFilterExternal, &cmxtopdf_filter, "cmxtopdf"}
-    // },
-
-
+    {
+        "image/x-cmx",
+        "image/vnd.cups-pdf",
+            {cfFilterExternal, &cmxtopdf_filter, "cmxtopdf"}
+    },
 
     {
         "image/vnd.cups-pdf",

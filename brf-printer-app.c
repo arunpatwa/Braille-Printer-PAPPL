@@ -14,12 +14,12 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include <string.h>
+#include <cups/ipp.h>
 #include <magic.h>
+
 #include "brf-printer.h"
 
 // Include necessary headers...
-
-
 
 #define brf_TESTPAGE_MIMETYPE "application/vnd.cups-brf"
 
@@ -240,134 +240,146 @@ driver_cb(
     *attrs = ippNew();
 
   // Adding TopMargin,BottomMargin,LeftMargin,RightMargin
+  printf("*****************attrs values**********%p*******\n", *attrs);
 
   const char *margin_names[] = {"TopMargin", "BottomMargin", "LeftMargin", "RightMargin"};
-int default_value = 3;
-int range_min = 0;
-int range_max = 10;
-char attribute_name[50];  // Buffer to hold the formatted attribute names
+  int default_value = 3;
+  int range_min = 0;
+  int range_max = 10;
+  char attribute_name[50]; // Buffer to hold the formatted attribute names
 
-for (int i = 0; i < 4; i++) {
-  // Add margin name to vendor array
-  data->vendor[data->num_vendor++] = margin_names[i];
+  for (int i = 0; i < 4; i++)
+  {
+    // Add margin name to vendor array
+    data->vendor[data->num_vendor++] = margin_names[i];
 
-  // Format and add the default integer attribute
-  sprintf(attribute_name, "%s-default", margin_names[i]);
-  ipp_attribute_t *check_default = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, attribute_name, default_value);
+    // Format and add the default integer attribute
+    sprintf(attribute_name, "%s-default", margin_names[i]);
+    ipp_attribute_t *check_default = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, attribute_name, default_value);
 
-  // Format and add the range attribute
-  sprintf(attribute_name, "%s-support", margin_names[i]);
-  ipp_attribute_t *check_range = ippAddRange(*attrs, IPP_TAG_PRINTER, attribute_name, range_min, range_max);
+    // Format and add the range attribute
+    sprintf(attribute_name, "%s-support", margin_names[i]);
+    ipp_attribute_t *check_range = ippAddRange(*attrs, IPP_TAG_PRINTER, attribute_name, range_min, range_max);
 
-  // Check if attributes exist and delete if necessary
-  ipp_attribute_t *attr_default = ippFindAttribute(*attrs, attribute_name, IPP_TAG_ZERO);
-  if (attr_default) {
-    ippDeleteAttribute(*attrs, attr_default);
+    // Check if attributes exist and delete if necessary
+    ipp_attribute_t *attr_default = ippFindAttribute(*attrs, attribute_name, IPP_TAG_ZERO);
+    if (attr_default)
+    {
+      ippDeleteAttribute(*attrs, attr_default);
+    }
+
+    ipp_attribute_t *attr_range = ippFindAttribute(*attrs, attribute_name, IPP_TAG_ZERO);
+    if (attr_range)
+    {
+      ippDeleteAttribute(*attrs, attr_range);
+    }
+
+    // Debug information
+    printf("************* %s attribute values *************\n", margin_names[i]);
+    if (check_default)
+    {
+      printf("%s default added\n", margin_names[i]);
+    }
+    else
+    {
+      printf("%s default not added\n", margin_names[i]);
+    }
+
+    if (check_range)
+    {
+      printf("%s range added\n", margin_names[i]);
+    }
+    else
+    {
+      printf("%s range not added\n", margin_names[i]);
+    }
   }
 
-  ipp_attribute_t *attr_range = ippFindAttribute(*attrs, attribute_name, IPP_TAG_ZERO);
-  if (attr_range) {
-    ippDeleteAttribute(*attrs, attr_range);
-  }
+  // not able to add pageSize using below implementation..
+  data->vendor[data->num_vendor++] = "PageSize";
+  ipp_attribute_t *page_size = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "PageSize-default", NULL, "A4");
 
-  // Debug information
-  printf("************* %s attribute values *************\n", margin_names[i]);
-  if (check_default) {
-    printf("%s default added\n", margin_names[i]);
-  } else {
-    printf("%s default not added\n", margin_names[i]);
-  }
+  data->vendor[data->num_vendor++] = "page-left";
+  ipp_attribute_t *page_left = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "page-left-default", 15);
 
-  if (check_range) {
-    printf("%s range added\n", margin_names[i]);
-  } else {
-    printf("%s range not added\n", margin_names[i]);
-  }
-}
+  data->vendor[data->num_vendor++] = "page-right";
+  ipp_attribute_t *page_right = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "page-right-default", 15);
 
+  data->vendor[data->num_vendor++] = "page-top";
+  ipp_attribute_t *page_top = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "page-top-default", 15);
 
-  // data->vendor[data->num_vendor++] = "TopMargin";
-  // ipp_attribute_t *check1 = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER,
-  //                                         "TopMargin-default", 3);
-  // ipp_attribute_t *check2 = ippAddRange(*attrs, IPP_TAG_PRINTER, "TopMargin-support", 0, 10);
+  data->vendor[data->num_vendor++] = "page-bottom";
+  ipp_attribute_t *page_bottom = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "page-bottom-default", 15);
 
-  // ipp_attribute_t *attr = ippFindAttribute(*attrs, "TopMargin-default", IPP_TAG_ZERO);
-  // if (attr)
-  // {
-  //   ippDeleteAttribute(*attrs, attr);
-  // }
+  data->vendor[data->num_vendor++] = "TextDotDistance";
+  ipp_attribute_t *text_dot_distance = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "TextDotDistance-default", 250);
 
-  // printf("*****************attrs values**********%p*******\n", *attrs);
+  data->vendor[data->num_vendor++] = "TextDots";
+  ipp_attribute_t *text_dots = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "TextDots-default", 6);
 
-  // ipp_attribute_t *attr2 = ippFindAttribute(*attrs, "TopMargin-support", IPP_TAG_ZERO);
-  // if (attr2)
-  // {
-  //   ippDeleteAttribute(*attrs, attr2);
-  // }
+  data->vendor[data->num_vendor++] = "LineSpacing";
+  ipp_attribute_t *line_spacing = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "LineSpacing-default", 500);
 
-  // data->vendor[data->num_vendor++] = "BottomMargin";
-  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "BottomMargin-default", 3);
-  // ippAddRange(*attrs, IPP_TAG_PRINTER, "BottomMargin-support", 0, 10);
+  data->vendor[data->num_vendor++] = "GraphicDotDistance";
+  ipp_attribute_t *graphic_dot_distance = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "GraphicDotDistance-default", 200);
 
-  // data->vendor[data->num_vendor++] = "LeftMargin";
-  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "LeftMargin-default", 3);
-  // ippAddRange(*attrs, IPP_TAG_PRINTER, "LeftMargin-support", 0, 10);
+  data->vendor[data->num_vendor++] = "LibLouis";
+  ipp_attribute_t *libLouis = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "LibLouis-default", NULL, "Locale");
 
-  // data->vendor[data->num_vendor++] = "RightMargin";
-  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "RightMargin-default", 3);
-  // ippAddRange(*attrs, IPP_TAG_PRINTER, "RightMargin-support", 0, 10);
+  data->vendor[data->num_vendor++] = "LibLouis2";
+  ipp_attribute_t *libLouis2 = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "LibLouis2-default", NULL, "HyphLocale");
 
+  data->vendor[data->num_vendor++] = "LibLouis3";
+  ipp_attribute_t *libLouis3 = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "LibLouis3-default", NULL, "None");
 
-  // if (check1)
-  //   printf("**************IppAddInteger added*****************\n");
-  // else
-  //   printf("******************not added**************************\n");
+  data->vendor[data->num_vendor++] = "LibLouis4";
+  ipp_attribute_t *libLouis4 = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "LibLouis4-default", NULL, "None");
 
-  // if (check2)
-  //   printf("**************IppAddRange added*****************\n");
- 
+  // need to how ask how I can pass the TopMargin in the Braille Page Number
+  data->vendor[data->num_vendor++] = "BraillePageNumber";
+  ipp_attribute_t *braillePageNumber = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "BraillePageNumber-default", NULL, "BottomMargin");
 
-  // data->vendor[data->num_vendor++] = "DefaultBraillePageNumber";
-  // ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_STRING, "BraillePageNumber", NULL, "BottomMargin");
+  data->vendor[data->num_vendor++] = "PrintPageNumber";
+  ipp_attribute_t *printPageNumber = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "PrintPageNumber-default", NULL, "TopMargin");
 
-  // data->vendor[data->num_vendor++] = "DefaultPrintPageNumber";
-  // ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_STRING, "PrintPageNumber", NULL, "TopMargin");
+  data->vendor[data->num_vendor++] = "PageSeparator";
+  ipp_attribute_t *pageSeparator = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "PageSeparator-default", 1);
 
-  // data->vendor[data->num_vendor++] = "DefaultPageSeparator";
-  // ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_STRING, "PageSeparator", NULL, "True");
+  data->vendor[data->num_vendor++] = "PageSeparatorNumber";
+  ipp_attribute_t *pageSeparatorNumber = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "PageSeparatorNumber-default", 1);
 
-  // data->vendor[data->num_vendor++] = "DefaultPageSeparatorNumber";
-  // ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_STRING, "DefaultPageSeparatorNumber", NULL, "True");
+  data->vendor[data->num_vendor++] = "ContinuePages";
+  ipp_attribute_t *continuePages = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "ContinuePages-default", 1);
 
-  // data->vendor[data->num_vendor++] = "DefaultContinuePages";
-  // ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_STRING, "DefaultContinuePages", NULL, "False");
+  data->vendor[data->num_vendor++] = "SendFF";
+  ipp_attribute_t *sendFF = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "SendFF-default", 0);
 
-  // data->vendor[data->num_vendor++] = "DefaultGraphicDotDistance";
-  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultGraphicDotDistance", 200);
+  data->vendor[data->num_vendor++] = "SendSUB";
+  ipp_attribute_t *sendSUB = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "SendSUB-default", 1);
 
-  // data->vendor[data->num_vendor++] = "DefaultRotate";
-  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultRotate", 90);
+  data->vendor[data->num_vendor++] = "Negate";
+  ipp_attribute_t *negate = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "Negate-default", 10);
 
-  // data->vendor[data->num_vendor++] = "DefaultEdge";
-  // ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_STRING, "DefaultEdge", NULL, "Canny");
+  data->vendor[data->num_vendor++] = "EdgeFactor";
+  ipp_attribute_t *edgeFactor = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "EdgeFactor-default", 1);
 
-  // data->vendor[data->num_vendor++] = "DefaultNegate";
-  // ippAddString(*attrs, IPP_TAG_PRINTER,IPP_TAG_STRING, "DefaultNegate", NULL, "False");
+  data->vendor[data->num_vendor++] = "CannyRadius";
+  ipp_attribute_t *cannyRadius = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "CannyRadius-default", 0);
 
-  // data->vendor[data->num_vendor++] = "DefaultEdgeFactor";
-  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultEdgeFactor", 1);
+  data->vendor[data->num_vendor++] = "CannySigma";
+  ipp_attribute_t *cannySigma = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "CannySigma-default", 1);
 
-  // data->vendor[data->num_vendor++] = "DefaultCannyRadius";
-  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultCannyRadius", 0);
+  data->vendor[data->num_vendor++] = "CannyLower";
+  ipp_attribute_t *CannyLower = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "CannyLower-default", 15);
 
-  // data->vendor[data->num_vendor++] = "DefaultCannySigma";
-  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultCannySigma", 1);
+  data->vendor[data->num_vendor++] = "CannyUpper";
+  ipp_attribute_t *CannyUpper = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "CannyUpper-default", 30);
 
-  // data->vendor[data->num_vendor++] = "DefaultCannyLower";
-  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultCannyLower", 10);
+  data->vendor[data->num_vendor++] = "Rotate";
+  ipp_attribute_t *rotate = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "Rotate-default", NULL,"90>");
 
-  // data->vendor[data->num_vendor++] = "DefaultCannyUpper";
-  // ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "DefaultCannyUpper", 30);
+  data->vendor[data->num_vendor++] = "Edge";
+  ipp_attribute_t *edge = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "Edge-default", NULL,"Canny");
 
   // "print-quality-default" value...
   data->quality_default = IPP_QUALITY_NORMAL;
@@ -408,9 +420,9 @@ void BRFSetup(pappl_system_t *system, brf_printer_app_global_data_t *global_data
   {
     conversion = &converts[i];
 
-    // Call the function (void, no return value)
+   
     // papplSystemAddMIMEFilter(system, conversion->srctype, "application/vnd.cups-brf", BRFTestFilterCB, global_data);
-    papplSystemAddMIMEFilter(system, conversion->srctype,brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, global_data);
+    papplSystemAddMIMEFilter(system, conversion->srctype, brf_TESTPAGE_MIMETYPE, BRFTestFilterCB, global_data);
 
     // Set filter_added to true after calling the function
     filter_added = true;
@@ -435,36 +447,41 @@ mime_cb(const unsigned char *header, // I - Header data
         size_t headersize,           // I - Size of header data
         void *cbdata)                // I - Callback data (not used)
 {
-    magic_t magic;
-    const char *mime_type = NULL;
+  magic_t magic;
+  const char *mime_type = NULL;
 
-    // Step 1: Open a magic_t object for MIME type detection
-    magic = magic_open(MAGIC_MIME_TYPE);
-    if (magic == NULL) {
-        fprintf(stderr, "Failed to initialize libmagic.\n");
-        return NULL;
-    }
+  // Step 1: Open a magic_t object for MIME type detection
+  magic = magic_open(MAGIC_MIME_TYPE);
+  if (magic == NULL)
+  {
+    fprintf(stderr, "Failed to initialize libmagic.\n");
+    return NULL;
+  }
 
-    // Step 2: Load the magic database
-    if (magic_load(magic, NULL) != 0) {
-        fprintf(stderr, "Failed to load magic database: %s\n", magic_error(magic));
-        magic_close(magic);
-        return NULL;
-    }
-
-    // Step 3: Use magic_buffer to determine MIME type from the header data
-    mime_type = magic_buffer(magic, header, headersize);
-    if (mime_type == NULL) {
-        fprintf(stderr, "Failed to determine MIME type: %s\n", magic_error(magic));
-    } else {
-        // Duplicate the MIME type string, as magic_buffer may free it after magic_close
-        mime_type = strdup(mime_type);
-    }
-
-    // Step 4: Clean up
+  // Step 2: Load the magic database
+  if (magic_load(magic, NULL) != 0)
+  {
+    fprintf(stderr, "Failed to load magic database: %s\n", magic_error(magic));
     magic_close(magic);
+    return NULL;
+  }
 
-    return mime_type;  // Return the MIME type (or NULL if undetected)
+  // Step 3: Use magic_buffer to determine MIME type from the header data
+  mime_type = magic_buffer(magic, header, headersize);
+  if (mime_type == NULL)
+  {
+    fprintf(stderr, "Failed to determine MIME type: %s\n", magic_error(magic));
+  }
+  else
+  {
+    // Duplicate the MIME type string, as magic_buffer may free it after magic_close
+    mime_type = strdup(mime_type);
+  }
+
+  // Step 4: Clean up
+  magic_close(magic);
+
+  return mime_type; // Return the MIME type (or NULL if undetected)
 }
 
 // 'printer_cb()' - Try auto-adding printers.
@@ -716,6 +733,29 @@ int create_brf_printer(pappl_system_t *system)
 // Items to configure the properties of this Printer Application
 // These items do not change while the Printer Application is running
 
+const char *get_tag_name(ipp_tag_t tag) {
+    switch (tag) {
+        case IPP_TAG_ZERO: return "IPP_TAG_ZERO";
+        case IPP_TAG_INTEGER: return "IPP_TAG_INTEGER";
+        case IPP_TAG_BOOLEAN: return "IPP_TAG_BOOLEAN";
+        case IPP_TAG_ENUM: return "IPP_TAG_ENUM";
+        case IPP_TAG_STRING: return "IPP_TAG_STRING";
+        case IPP_TAG_TEXT: return "IPP_TAG_TEXT";
+        case IPP_TAG_NAME: return "IPP_TAG_NAME";
+        case IPP_TAG_KEYWORD: return "IPP_TAG_KEYWORD";
+        case IPP_TAG_URI: return "IPP_TAG_URI";
+        case IPP_TAG_DATE: return "IPP_TAG_DATE";
+        case IPP_TAG_RESOLUTION: return "IPP_TAG_RESOLUTION";
+        case IPP_TAG_RANGE: return "IPP_TAG_RANGE";
+        case IPP_TAG_BEGIN_COLLECTION: return "IPP_TAG_BEGIN_COLLECTION";
+        case IPP_TAG_TEXTLANG: return "IPP_TAG_TEXTLANG";
+        case IPP_TAG_NAMELANG: return "IPP_TAG_NAMELANG";
+        case IPP_TAG_MEMBERNAME: return "IPP_TAG_MEMBERNAME";
+        // Add more cases as needed
+        default: return "UNKNOWN_TAG";
+    }
+}
+
 bool // O - `true` on success, `false` on failure
 BRFTestFilterCB(
     pappl_job_t *job,       // I - Job
@@ -759,91 +799,99 @@ BRFTestFilterCB(
   paramstr[sizeof(paramstr) - 1] = 0;
 
   // Define an array of option names
-  const char *option_names[] = {
-      "SendFF", "SendSUB", "LibLouis", "LibLouis2", "LibLouis3", "LibLouis4",
-      "TextDotDistance", "TextDots", "LineSpacing", "TopMargin", "BottomMargin",
-      "LeftMargin", "RightMargin", "BraillePageNumber", "PrintPageNumber",
-      "PageSeparator", "PageSeparatorNumber", "ContinuePages", "GraphicDotDistance",
-      "Rotate", "Edge", "Negate", "EdgeFactor", "CannyRadius", "CannySigma",
-      "CannyLower", "CannyUpper"};
+  const char *option_names[] = {"PageSize",
+                                "SendFF", "SendSUB", "LibLouis", "LibLouis2", "LibLouis3", "LibLouis4",
+                                "TextDotDistance", "TextDots", "LineSpacing", "TopMargin", "BottomMargin",
+                                "LeftMargin", "RightMargin", "BraillePageNumber", "PrintPageNumber",
+                                "PageSeparator", "PageSeparatorNumber", "ContinuePages", "GraphicDotDistance",
+                                "Rotate", "Edge", "Negate", "EdgeFactor", "CannyRadius", "CannySigma",
+                                "CannyLower", "CannyUpper", "page-left", "page-right", "page-top", "page-bottom"};
 
-  // Loop through each option and process them
-  for (size_t i = 0; i < sizeof(option_names) / sizeof(option_names[0]); i++)
-  {
+  // // Loop through each option and process them
+  // for (size_t i = 0; i < sizeof(option_names) / sizeof(option_names[0]); i++)
+  // {
+  //   const char *option_name = option_names[i];
+  //   ipp_attribute_t *attribute = papplJobGetAttribute(job, option_name);
+
+  //  // If attribute is not found, look for the default attribute
+  //   if (attribute == NULL) {
+  //       snprintf(buf, sizeof(buf), "%s-default", option_name);
+  //       attribute = ippFindAttribute(driver_attrs, buf, IPP_TAG_ZERO);
+  //       if (attribute != NULL) {
+  //           printf("Default attribute for %s: %s\n", option_name, ippGetName(attribute));
+  //       }
+  //   }
+
+  //   // Try to retrieve supported attribute as well
+  //   snprintf(buf, sizeof(buf), "%s-supported", option_name);
+  //   ipp_attribute_t *attr_support = ippFindAttribute(driver_attrs, buf, IPP_TAG_ZERO);
+  //   if (attr_support != NULL) {
+  //       printf("Supported attribute for %s: %s\n", option_name, ippGetName(attr_support));
+  //   }
+
+  //   if (attribute != NULL)
+  //   {
+  //     ipp_tag_t tagcheck = ippGetValueTag(attribute);
+
+  //     if (tagcheck == IPP_TAG_INTEGER)
+  //     {
+  //       int value = ippGetInteger(attribute, 0);
+  //       snprintf(paramstr, sizeof(paramstr) - 1, "%d", value);
+  //     }
+  //     else if (tagcheck == IPP_TAG_BOOLEAN)
+  //     {
+  //       bool boolean = ippGetBoolean(attribute, 0);
+  //       strcpy(paramstr, boolean ? "True" : "False");
+  //     }
+  //     else
+  //     {
+  //       const char *str = ippGetString(attribute, 0, NULL);
+  //       strncpy(paramstr, str, sizeof(paramstr) - 1);
+  //     }
+
+  //     // Add the option to job_options
+  //     job_options->num_vendor = cupsAddOption(option_name, paramstr, job_options->num_vendor, &(job_options->vendor));
+  //   }
+
+  //   printf("****** Value for %s ****** %s\n", option_name, paramstr);
+  // }
+
+
+
+// Loop through each option and process them
+for (size_t i = 0; i < sizeof(option_names) / sizeof(option_names[0]); i++) {
     const char *option_name = option_names[i];
     ipp_attribute_t *attribute = papplJobGetAttribute(job, option_name);
 
     // Fallback to driver default if attribute is not found
-    if (attribute == NULL)
-    {
-      snprintf(buf, sizeof(buf), "%s-default", option_name);
-      attribute = ippFindAttribute(driver_attrs, buf, IPP_TAG_ZERO);
+    if (attribute == NULL) {
+        snprintf(buf, sizeof(buf), "%s-default", option_name);
+        attribute = ippFindAttribute(driver_attrs, buf, IPP_TAG_ZERO);
     }
 
-    if (attribute != NULL)
-    {
-      ipp_tag_t tagcheck = ippGetValueTag(attribute);
+    if (attribute != NULL) {
+        ipp_tag_t tagcheck = ippGetValueTag(attribute);
+        printf("****** Tag Name for %s: %s ******\n", option_name, get_tag_name(tagcheck));
 
-      if (tagcheck == IPP_TAG_INTEGER)
-      {
-        int value = ippGetInteger(attribute, 0);
-        snprintf(paramstr, sizeof(paramstr) - 1, "%d", value);
-      }
-      else if (tagcheck == IPP_TAG_BOOLEAN)
-      {
-        bool boolean = ippGetBoolean(attribute, 0);
-        strcpy(paramstr, boolean ? "True" : "False");
-      }
-      else
-      {
-        const char *str = ippGetString(attribute, 0, NULL);
-        strncpy(paramstr, str, sizeof(paramstr) - 1);
-      }
+        if (tagcheck == IPP_TAG_INTEGER) {
+            int value = ippGetInteger(attribute, 0);
+            snprintf(paramstr, sizeof(paramstr) - 1, "%d", value);
+        } 
+        else if (tagcheck == IPP_TAG_BOOLEAN) {
+            bool boolean = ippGetBoolean(attribute, 0);
+            strcpy(paramstr, boolean ? "True" : "False");
+        } 
+        else {
+            const char *str = ippGetString(attribute, 0, NULL);
+            strncpy(paramstr, str, sizeof(paramstr) - 1);
+        }
 
-      // Add the option to job_options
-      job_options->num_vendor = cupsAddOption(option_name, paramstr, job_options->num_vendor, &(job_options->vendor));
+        // Add the option to job_options
+        job_options->num_vendor = cupsAddOption(option_name, paramstr, job_options->num_vendor, &(job_options->vendor));
     }
 
-    printf("****** Value for %s ****** %s\n", option_name, paramstr);
-  }
-
-  // paramstr[sizeof(paramstr)-1] = 0;
-
-  // ipp_attribute_t *TopMargin = papplJobGetAttribute(job, "TopMargin");
-
-  // if (TopMargin == NULL)
-  // {
-  //   snprintf(buf, sizeof(buf), "%s-default", "TopMargin");
-  //   TopMargin = ippFindAttribute(driver_attrs, buf, IPP_TAG_ZERO);
-  // }
-
-  // ipp_tag_t tagcheck = ippGetValueTag(TopMargin);
-
-  // printf("****************tagCheck*********%d*************\n", tagcheck);
-
-  // if (tagcheck == IPP_TAG_INTEGER)
-  // {
-  //   int value = ippGetInteger(TopMargin, 0);
-  //   snprintf(paramstr, sizeof(paramstr) - 1, "%d", value);
-  // }
-
-  // else if (tagcheck==IPP_TAG_BOOLEAN){
-  //     const bool boolean = ippGetBoolean(TopMargin, 0);
-  //     if(boolean){
-  //       strcpy(paramstr, "True");
-  //     }
-  //     else strcpy(paramstr,"False");
-  // }
-  // else
-  // {
-  //   const char *str = ippGetString(TopMargin, 0, NULL);
-  //   strncpy(paramstr, str,sizeof(paramstr)-1);
-  // }
-
-  // printf("**********************value for topMargin******%p*******\n", TopMargin);
-
-  // job_options->num_vendor = cupsAddOption("TopMargin", paramstr, job_options->num_vendor, &(job_options->vendor));
-
+    printf("****** Value for %s: %s ******\n", option_name, paramstr);
+}
   // job_options->print_content_optimize=brf_GetFileContentType(job);
 
   papplLogJob(job, PAPPL_LOGLEVEL_DEBUG, "Entering BRFTestFilterCB()");
