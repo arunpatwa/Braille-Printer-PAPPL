@@ -243,7 +243,7 @@ driver_cb(
   printf("*****************attrs values**********%p*******\n", *attrs);
 
   const char *margin_names[] = {"TopMargin", "BottomMargin", "LeftMargin", "RightMargin"};
-  int default_value = 3;
+  int default_value = 2;
   int range_min = 0;
   int range_max = 10;
   char attribute_name[50]; // Buffer to hold the formatted attribute names
