@@ -259,35 +259,13 @@ driver_cb(
     // Format and add the range attribute
     sprintf(attribute_name, "%s-support", margin_names[i]);
     ipp_attribute_t *check_range = ippAddRange(*attrs, IPP_TAG_PRINTER, attribute_name, range_min, range_max);
-
-    // // Check if attributes exist and delete if necessary
-    // ipp_attribute_t *attr_default = ippFindAttribute(*attrs, attribute_name, IPP_TAG_ZERO);
-    // if (attr_default)
-    // {
-    //   ippDeleteAttribute(*attrs, attr_default);
-    // }
-    // ipp_attribute_t *attr_range = ippFindAttribute(*attrs, attribute_name, IPP_TAG_ZERO);
-    // if (attr_range)
-    // {
-    //   ippDeleteAttribute(*attrs, attr_range);
-    // }
   }
 
-  // not able to add pageSize using below implementation..
-  data->vendor[data->num_vendor++] = "PageSize";
-  ipp_attribute_t *page_size = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "PageSize-default", NULL, "A4");
+  data->vendor[data->num_vendor++] = "SendFF";
+  ipp_attribute_t *sendFF = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "SendFF-default", 0);
 
-  data->vendor[data->num_vendor++] = "page-left";
-  ipp_attribute_t *page_left = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "page-left-default", 15);
-
-  data->vendor[data->num_vendor++] = "page-right";
-  ipp_attribute_t *page_right = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "page-right-default", 15);
-
-  data->vendor[data->num_vendor++] = "page-top";
-  ipp_attribute_t *page_top = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "page-top-default", 15);
-
-  data->vendor[data->num_vendor++] = "page-bottom";
-  ipp_attribute_t *page_bottom = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "page-bottom-default", 15);
+  data->vendor[data->num_vendor++] = "SendSUB";
+  ipp_attribute_t *sendSUB = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "SendSUB-default", 1);
 
   data->vendor[data->num_vendor++] = "TextDotDistance";
   ipp_attribute_t *text_dot_distance = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "TextDotDistance-default", 250);
@@ -313,7 +291,6 @@ driver_cb(
   data->vendor[data->num_vendor++] = "LibLouis4";
   ipp_attribute_t *libLouis4 = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "LibLouis4-default", NULL, "None");
 
-  // need to how ask how I can pass the TopMargin in the Braille Page Number
   data->vendor[data->num_vendor++] = "BraillePageNumber";
   ipp_attribute_t *braillePageNumber = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "BraillePageNumber-default", NULL, "BottomMargin");
 
@@ -328,12 +305,6 @@ driver_cb(
 
   data->vendor[data->num_vendor++] = "ContinuePages";
   ipp_attribute_t *continuePages = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "ContinuePages-default", 1);
-
-  // data->vendor[data->num_vendor++] = "SendFF";
-  // ipp_attribute_t *sendFF = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "SendFF-default", 0);
-
-  // data->vendor[data->num_vendor++] = "SendSUB";
-  // ipp_attribute_t *sendSUB = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "SendSUB-default", 1);
 
   data->vendor[data->num_vendor++] = "Negate";
   ipp_attribute_t *negate = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "Negate-default", 0);
@@ -359,11 +330,19 @@ driver_cb(
   data->vendor[data->num_vendor++] = "Edge";
   ipp_attribute_t *edge = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "Edge-default", NULL,"Canny");
 
-  data->vendor[data->num_vendor++] = "mirror";
   ipp_attribute_t *mirror = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "mirror-default", 0);
 
-  data->vendor[data->num_vendor++] = "fitplot";
   ipp_attribute_t *fitplot = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "fitplot-default", 1);
+
+  ipp_attribute_t *page_size = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "PageSize-default", NULL, "A4");
+
+  ipp_attribute_t *page_left = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "page-left-default", 15);
+
+  ipp_attribute_t *page_right = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "page-right-default", 15);
+
+  ipp_attribute_t *page_top = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "page-top-default", 15);
+  
+  ipp_attribute_t *page_bottom = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "page-bottom-default", 15);
 
   // "print-quality-default" value...
   data->quality_default = IPP_QUALITY_NORMAL;
