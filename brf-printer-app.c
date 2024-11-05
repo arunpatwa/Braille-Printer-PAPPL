@@ -240,7 +240,6 @@ driver_cb(
     *attrs = ippNew();
 
   // Adding TopMargin,BottomMargin,LeftMargin,RightMargin
-  printf("*****************attrs values**********%p*******\n", *attrs);
 
   const char *margin_names[] = {"TopMargin", "BottomMargin", "LeftMargin", "RightMargin"};
   int default_value = 2;
@@ -261,38 +260,17 @@ driver_cb(
     sprintf(attribute_name, "%s-support", margin_names[i]);
     ipp_attribute_t *check_range = ippAddRange(*attrs, IPP_TAG_PRINTER, attribute_name, range_min, range_max);
 
-    // Check if attributes exist and delete if necessary
-    ipp_attribute_t *attr_default = ippFindAttribute(*attrs, attribute_name, IPP_TAG_ZERO);
-    if (attr_default)
-    {
-      ippDeleteAttribute(*attrs, attr_default);
-    }
-
-    ipp_attribute_t *attr_range = ippFindAttribute(*attrs, attribute_name, IPP_TAG_ZERO);
-    if (attr_range)
-    {
-      ippDeleteAttribute(*attrs, attr_range);
-    }
-
-    // Debug information
-    printf("************* %s attribute values *************\n", margin_names[i]);
-    if (check_default)
-    {
-      printf("%s default added\n", margin_names[i]);
-    }
-    else
-    {
-      printf("%s default not added\n", margin_names[i]);
-    }
-
-    if (check_range)
-    {
-      printf("%s range added\n", margin_names[i]);
-    }
-    else
-    {
-      printf("%s range not added\n", margin_names[i]);
-    }
+    // // Check if attributes exist and delete if necessary
+    // ipp_attribute_t *attr_default = ippFindAttribute(*attrs, attribute_name, IPP_TAG_ZERO);
+    // if (attr_default)
+    // {
+    //   ippDeleteAttribute(*attrs, attr_default);
+    // }
+    // ipp_attribute_t *attr_range = ippFindAttribute(*attrs, attribute_name, IPP_TAG_ZERO);
+    // if (attr_range)
+    // {
+    //   ippDeleteAttribute(*attrs, attr_range);
+    // }
   }
 
   // not able to add pageSize using below implementation..
@@ -351,14 +329,14 @@ driver_cb(
   data->vendor[data->num_vendor++] = "ContinuePages";
   ipp_attribute_t *continuePages = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "ContinuePages-default", 1);
 
-  data->vendor[data->num_vendor++] = "SendFF";
-  ipp_attribute_t *sendFF = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "SendFF-default", 0);
+  // data->vendor[data->num_vendor++] = "SendFF";
+  // ipp_attribute_t *sendFF = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "SendFF-default", 0);
 
-  data->vendor[data->num_vendor++] = "SendSUB";
-  ipp_attribute_t *sendSUB = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "SendSUB-default", 1);
+  // data->vendor[data->num_vendor++] = "SendSUB";
+  // ipp_attribute_t *sendSUB = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "SendSUB-default", 1);
 
   data->vendor[data->num_vendor++] = "Negate";
-  ipp_attribute_t *negate = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "Negate-default", 10);
+  ipp_attribute_t *negate = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "Negate-default", 0);
 
   data->vendor[data->num_vendor++] = "EdgeFactor";
   ipp_attribute_t *edgeFactor = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "EdgeFactor-default", 1);
@@ -370,7 +348,7 @@ driver_cb(
   ipp_attribute_t *cannySigma = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "CannySigma-default", 1);
 
   data->vendor[data->num_vendor++] = "CannyLower";
-  ipp_attribute_t *CannyLower = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "CannyLower-default", 15);
+  ipp_attribute_t *CannyLower = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "CannyLower-default", 10);
 
   data->vendor[data->num_vendor++] = "CannyUpper";
   ipp_attribute_t *CannyUpper = ippAddInteger(*attrs, IPP_TAG_PRINTER, IPP_TAG_INTEGER, "CannyUpper-default", 30);
@@ -380,6 +358,12 @@ driver_cb(
 
   data->vendor[data->num_vendor++] = "Edge";
   ipp_attribute_t *edge = ippAddString(*attrs, IPP_TAG_PRINTER, IPP_TAG_TEXT, "Edge-default", NULL,"Canny");
+
+  data->vendor[data->num_vendor++] = "mirror";
+  ipp_attribute_t *mirror = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "mirror-default", 0);
+
+  data->vendor[data->num_vendor++] = "fitplot";
+  ipp_attribute_t *fitplot = ippAddBoolean(*attrs, IPP_TAG_PRINTER, "fitplot-default", 1);
 
   // "print-quality-default" value...
   data->quality_default = IPP_QUALITY_NORMAL;
@@ -758,8 +742,9 @@ BRFTestFilterCB(
   paramstr[sizeof(paramstr) - 1] = 0;
 
   // Define an array of option names
-  const char *option_names[] = {"PageSize",
-                                "SendFF", "SendSUB", "LibLouis", "LibLouis2", "LibLouis3", "LibLouis4",
+  const char *option_names[] = {"PageSize","mirror","fitplot",
+                                  "SendFF", "SendSUB",
+                                 "LibLouis", "LibLouis2", "LibLouis3", "LibLouis4",
                                 "TextDotDistance", "TextDots", "LineSpacing", "TopMargin", "BottomMargin",
                                 "LeftMargin", "RightMargin", "BraillePageNumber", "PrintPageNumber",
                                 "PageSeparator", "PageSeparatorNumber", "ContinuePages", "GraphicDotDistance",
@@ -940,9 +925,6 @@ BRFTestFilterCB(
       // Compare source type with informat
       if (strcmp(conversion->srctype, informat) == 0)
       {
-        // Log the match details
-        printf("***********conversion_informat****%s**********\n", informat);
-        printf("***********conversion_srctype****%s**********\n", conversion->srctype);
         break; // Exit the loop when a match is found
       }
     }

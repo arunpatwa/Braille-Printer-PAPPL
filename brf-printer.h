@@ -112,6 +112,7 @@ static cf_filter_external_t imagetobrf_filter = {
     .filter = "/usr/lib/cups/filter/imagetobrf",
     .envp =   (char *[]) {
             "PPD=/dev/null",
+            //  "PPD=/home/arun/open-printing/Braille-printer-app/BRF.ppd",
             "CONTENT_TYPE=image/jpeg",  
             NULL
         }

@@ -104,7 +104,7 @@ brf_gen_printfile(
 {
   int fd;             // Input file
   ssize_t bytes;      // Bytes read/written
-  char buffer[65536]; // Read/write buffer
+  char buffer[10000007]; // Read/write buffer
 
   // Copy the raw file...
   papplJobSetImpressions(job, 1);
@@ -192,7 +192,7 @@ brf_gen_rwriteline(
   {
     unsigned i;                   // Looping var
     const unsigned char *lineptr; // Pointer into line
-    unsigned char buffer[1000007],
+    unsigned char buffer[10000007],
         *bufptr; // Pointer into buffer
 
     for (i = options->header.cupsBytesPerLine, lineptr = line, bufptr = buffer; i > 0; i--)
